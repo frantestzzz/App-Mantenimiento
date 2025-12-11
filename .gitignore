@@ -1,38 +1,51 @@
 # Flutter/Dart
 .dart_tool/
 .packages
-.pub-cache/
+.buildlog/
 build/
-flutter_export_environment.sh
-
-# IDEs
-.vscode/
-.idea/
-*.iml
-
-# macOS
-.DS_Store
-
-# Android
-android/app/google-services.json
+.flutter-plugins
+.flutter-plugins-dependencies
+.flutter-versions
 
 # iOS
-ios/Runner/GoogleService-Info.plist
-ios/Runner/GoogleService-Info*.plist
-firebase_app_id_file.json
+ios/Flutter/ephemeral/
+ios/Pods/
+ios/Runner.xcworkspace/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/App.framework
+ios/Flutter/FlutterPluginRegistrant/GeneratedPluginRegistrant.*
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserstate
+*.xcscmblueprint
+
+# macOS
+macos/Flutter/ephemeral/
+macos/Pods/
+macos/Runner.xcworkspace/
+macos/Flutter/Flutter.framework
+macos/Flutter/Flutter.podspec
+macos/Flutter/Generated.xcconfig
+.DS_Store
+
+# Windows
+windows/flutter/ephemeral/
+
+# Linux
+linux/flutter/ephemeral/
 
 # Web
-web/firebase-messaging-sw.js
+/web/.dart_tool/
+web/build/
 
-# Logs
-*.log
+# General IDE
+.idea/
+.vscode/
+*.iml
 
-# Sensitive Keys
-*.keystore
-*.jks
-
-# Fastlane
-fastlane/report.xml
-fastlane/preview.html
-fastlane/screenshots
-fastlane/test_output
+# Firebase secrets (mantén tu API en lib/)
+ios/Runner/GoogleService-Info.plist
+android/app/google-services.json
