@@ -1,0 +1,222 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'dart:io';
+
+class AgregarProductoScreen extends StatefulWidget {
+  const AgregarProductoScreen({super.key});
+
+  @override
+  State<AgregarProductoScreen> createState() => _AgregarProductoScreenState();
+}
+
+class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
+  final _formKey = GlobalKey<FormState>();
+  bool _isUploading = false;
+
+  // Controladores de texto
+  final _nombreCtrl = TextEditingController();
+  final _marcaCtrl = TextEditingController();
+  final _serieCtrl = TextEditingController();
+  final _codigoQRCtrl = TextEditingController();
+  final _descripcionCtrl = TextEditingController();
+  
+  // Ubicación
+  final _bloqueCtrl = TextEditingController();
+  final _nivelCtrl = TextEditingController();
+  final _areaCtrl = TextEditingController();
+
+  // Valores por defecto / Dropdowns
+  String _categoria = 'luminarias';
+  String _disciplina = 'electricas';
+  String _subcategoria = 'luces_emergencia';
+  String _estado = 'operativo';
+  
+  DateTime _fechaCompra = DateTime.now();
+  File? _imageFile;
+
+  // --- 1. SELECCIONAR IMAGEN ---
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() => _imageFile = File(pickedFile.path));
+    }
+  }
+
+  // --- 2. SUBIR A SUPABASE ---
+  Future<String> _uploadImageToSupabase() async {
+    if (_imageFile == null) return '';
+
+    final supabase = Supabase.instance.client;
+    final fileExt = _imageFile!.path.split('.').last;
+    // Usamos timestamp para nombre único
+    final fileName = 'productos/new_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+
+    try {
+      await supabase.storage.from('AppMant').upload(fileName, _imageFile!);
+      final publicUrl = supabase.storage.from('AppMant').getPublicUrl(fileName);
+      return publicUrl;
+    } catch (e) {
+      print("Error subiendo imagen: $e");
+      return '';
+    }
+  }
+
+  // --- 3. GUARDAR EN FIRESTORE ---
+  Future<void> _guardarProducto() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_imageFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Por favor selecciona una imagen")));
+      return;
+    }
+
+    setState(() => _isUploading = true);
+
+    try {
+      // A. Subir imagen
+      final String imageUrl = await _uploadImageToSupabase();
+
+      // B. Guardar documento
+      await FirebaseFirestore.instance.collection('productos').add({
+        'nombre': _nombreCtrl.text,
+        'marca': _marcaCtrl.text,
+        'serie': _serieCtrl.text,
+        'codigoQR': _codigoQRCtrl.text,
+        'descripcion': _descripcionCtrl.text,
+        'categoria': _categoria,
+        'disciplina': _disciplina,
+        'subcategoria': _subcategoria,
+        'estado': _estado,
+        'fechaCompra': _fechaCompra, // Se guarda como Timestamp
+        'fechaCreacion': FieldValue.serverTimestamp(),
+        'imagenUrl': imageUrl,
+        // Mapa de ubicación
+        'ubicacion': {
+          'bloque': _bloqueCtrl.text,
+          'nivel': _nivelCtrl.text,
+          'area': _areaCtrl.text,
+        }
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Producto agregado correctamente")));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+    } finally {
+      setState(() => _isUploading = false);
+    }
+  }
+
+  // Selector de Fecha
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _fechaCompra,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null && picked != _fechaCompra) {
+      setState(() => _fechaCompra = picked);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Agregar Producto"), backgroundColor: const Color(0xFF2C3E50), iconTheme: const IconThemeData(color: Colors.white), titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20)),
+      body: _isUploading 
+        ? const Center(child: CircularProgressIndicator()) 
+        : Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              // FOTO
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  height: 200,
+                  decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey)),
+                  child: _imageFile != null 
+                    ? Image.file(_imageFile!, fit: BoxFit.cover)
+                    : const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.camera_alt, size: 50, color: Colors.grey), Text("Toca para agregar foto")]),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              const Text("Datos Generales", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const SizedBox(height: 10),
+              _buildTextField(_nombreCtrl, "Nombre del Equipo"),
+              _buildTextField(_marcaCtrl, "Marca"),
+              _buildTextField(_serieCtrl, "Serie"),
+              _buildTextField(_codigoQRCtrl, "Código QR"),
+              
+              // Dropdowns simples para categorías (puedes hacerlos más complejos si quieres)
+              _buildDropdown("Disciplina", _disciplina, ['electricas', 'sanitarias', 'civil', 'mecanica'], (v) => setState(() => _disciplina = v!)),
+              _buildDropdown("Categoría", _categoria, ['luminarias', 'tableros', 'bombas', 'otros'], (v) => setState(() => _categoria = v!)),
+              _buildDropdown("Estado", _estado, ['operativo', 'fuera de servicio'], (v) => setState(() => _estado = v!)),
+              _buildTextField(null, "Subcategoría (Escribir manual)", isManual: true, onChanged: (val) => _subcategoria = val),
+              
+              const SizedBox(height: 20),
+              const Text("Ubicación", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              Row(children: [
+                Expanded(child: _buildTextField(_bloqueCtrl, "Bloque")),
+                const SizedBox(width: 10),
+                Expanded(child: _buildTextField(_nivelCtrl, "Nivel")),
+              ]),
+              _buildTextField(_areaCtrl, "Área / Oficina"),
+
+              const SizedBox(height: 20),
+              ListTile(
+                title: const Text("Fecha de Compra"),
+                subtitle: Text(DateFormat('dd/MM/yyyy').format(_fechaCompra)),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () => _selectDate(context),
+              ),
+
+              _buildTextField(_descripcionCtrl, "Descripción", maxLines: 3),
+
+              const SizedBox(height: 30),
+              ElevatedButton(
+                onPressed: _guardarProducto,
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3498DB), padding: const EdgeInsets.symmetric(vertical: 15)),
+                child: const Text("GUARDAR PRODUCTO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController? ctrl, String label, {int maxLines = 1, bool isManual = false, Function(String)? onChanged}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: ctrl,
+        maxLines: maxLines,
+        onChanged: onChanged,
+        initialValue: isManual && ctrl == null ? _subcategoria : null, // Para el caso manual simple
+        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        validator: (v) => (v == null || v.isEmpty) && !isManual ? 'Campo requerido' : null,
+      ),
+    );
+  }
+
+  Widget _buildDropdown(String label, String value, List<String> items, Function(String?) onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        value: items.contains(value) ? value : items.first,
+        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        items: items.map((e) => DropdownMenuItem(value: e, child: Text(e.toUpperCase()))).toList(),
+        onChanged: onChanged,
+      ),
+    );
+  }
+}
