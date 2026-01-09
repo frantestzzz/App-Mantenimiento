@@ -17,7 +17,7 @@ dependencies:
   supabase_flutter: ^2.5.0 
   image_picker: ^1.0.4       # Para seleccionar la imagen
   path: ^1.8.3               # Para manejar rutas de archivo
-  mobile_scanner: 7.1.3 # O la versión más reciente
+  mobile_scanner: ^7.1.4 # O la versión más reciente
   qr_flutter: ^4.1.0        # Para generar códigos QR
   fl_chart: ^1.1.1        # Para gráficos
   pdf: ^3.11.3               # Para generar PDFs
