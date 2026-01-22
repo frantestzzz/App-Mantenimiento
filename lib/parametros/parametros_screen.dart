@@ -25,7 +25,6 @@ class ParametrosScreen extends StatelessWidget {
         stream: FirebaseFirestore.instance
             .collection('parametros_excels')
             .orderBy('disciplina')
-            .orderBy('tipo')
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -62,7 +61,17 @@ class ParametrosScreen extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 12),
-                      ...entry.value.map((doc) {
+                      ...(() {
+                        final sorted = [...entry.value];
+                        sorted.sort((a, b) {
+                          final dataA = a.data() as Map<String, dynamic>;
+                          final dataB = b.data() as Map<String, dynamic>;
+                          final tipoA = (dataA['tipo'] ?? '').toString();
+                          final tipoB = (dataB['tipo'] ?? '').toString();
+                          return tipoA.compareTo(tipoB);
+                        });
+                        return sorted;
+                      })().map((doc) {
                         final data = doc.data() as Map<String, dynamic>;
                         final filename = data['filename'] ?? doc.id;
                         final tipo = data['tipo'] ?? '';
