@@ -87,7 +87,7 @@ class ExcelRowMapper {
         return report?.id;
       case 'fechainspeccion':
       case 'fecha':
-        return _formatDate(reportData['fechaInspeccion']);
+        return _formatDate(reportData['fechaInspeccion'] ?? reportData['fecha']);
       case 'estadodetectado':
         return reportData['estadoDetectado'];
       case 'riesgoelectrico':
@@ -118,7 +118,13 @@ class ExcelRowMapper {
   }
 
   static String _resolveDisciplina(Map<String, dynamic> data) {
-    return data['disciplinaLabel']?.toString() ?? data['disciplina']?.toString() ?? '';
+    final raw = data['disciplina'] ??
+        data['disciplinaLabel'] ??
+        data['disciplinaKey'] ??
+        (data['attrs'] as Map<String, dynamic>?)?['disciplinaKey'] ??
+        (data['attrs'] as Map<String, dynamic>?)?['disciplina'];
+    final key = raw?.toString().toLowerCase() ?? '';
+    return _disciplinaLabels[key] ?? raw?.toString() ?? '';
   }
 
   static String _resolveTipoActivo(Map<String, dynamic> data) {
@@ -185,5 +191,12 @@ class ExcelRowMapper {
     'û': 'u',
     'ñ': 'n',
     'ç': 'c',
+  };
+
+  static const Map<String, String> _disciplinaLabels = {
+    'electricas': 'Electricas',
+    'arquitectura': 'Arquitectura',
+    'sanitarias': 'Sanitarias',
+    'estructuras': 'Estructuras',
   };
 }

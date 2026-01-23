@@ -476,13 +476,23 @@ bool _matchesDisciplina(
   required String disciplinaKey,
   required String disciplinaLabel,
 }) {
-  final keyValue = data['disciplinaKey']?.toString().toLowerCase();
-  if (keyValue != null && keyValue.isNotEmpty) {
-    return keyValue == disciplinaKey.toLowerCase();
+  final resolvedKey = _resolveDisciplinaKey(data);
+  if (resolvedKey.isNotEmpty) {
+    return resolvedKey == disciplinaKey.toLowerCase();
   }
-  final labelValue = data['disciplinaLabel']?.toString() ?? data['disciplina']?.toString();
-  if (labelValue == null) {
+  final labelValue = data['disciplinaLabel']?.toString() ?? data['disciplina']?.toString() ?? '';
+  if (labelValue.isEmpty) {
     return false;
   }
   return labelValue.toLowerCase() == disciplinaLabel.toLowerCase();
+}
+
+String _resolveDisciplinaKey(Map<String, dynamic> data) {
+  final disciplina = data['disciplina']?.toString();
+  if (disciplina != null && disciplina.isNotEmpty) {
+    return disciplina.toLowerCase();
+  }
+  final attrs = data['attrs'] as Map<String, dynamic>? ?? {};
+  final fallback = data['disciplinaKey'] ?? attrs['disciplinaKey'] ?? attrs['disciplina'];
+  return fallback?.toString().toLowerCase() ?? '';
 }

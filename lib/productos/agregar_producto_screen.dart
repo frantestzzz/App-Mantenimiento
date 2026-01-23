@@ -119,22 +119,18 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
 
       // B. Guardar documento
       final schema = await _schemaService.fetchSchema(_disciplina.toLowerCase());
-      final aliases = schema?.aliases ?? {};
       final attrs = _collectDynamicAttrs(schema?.fields ?? []);
       final topLevelValues = _extractTopLevel(attrs);
       final nivelValue = _nivelCtrl.text;
 
       final productRef = FirebaseFirestore.instance.collection('productos').doc();
       final disciplinaKey = _disciplina.toLowerCase();
-      final disciplinaLabel = _disciplina;
       final productData = {
         'nombre': _nombreCtrl.text,
         'descripcion': _descripcionCtrl.text,
         'categoria': _categoria,
         'categoriaActivo': _categoria,
-        'disciplina': disciplinaLabel,
-        'disciplinaKey': disciplinaKey,
-        'disciplinaLabel': disciplinaLabel,
+        'disciplina': disciplinaKey,
         'subcategoria': _subcategoria,
         'estado': _estado,
         'estadoOperativo': _estado,
@@ -153,8 +149,6 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
         'nivelCriticidad': _parseInt(_nivelCriticidadCtrl.text),
         'impactoFalla': _impactoFallaCtrl.text.trim(),
         'riesgoNormativo': _riesgoNormativoCtrl.text.trim(),
-        'attrs': attrs,
-        'aliases': aliases,
         ...topLevelValues,
         // Mapa de ubicación
         'ubicacion': {

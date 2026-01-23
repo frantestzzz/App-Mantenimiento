@@ -33,6 +33,8 @@ El campo canónico de ubicación es **`nivel`**. Al leer, se hace fallback en es
 3. `ubicacion.nivel`
 4. `ubicacion.piso`
 
+La disciplina se guarda en minúsculas como key (ej: `electricas`). El visor convierte esa key al label del template (Electricas, Arquitectura, etc.).
+
 ### Base (Electricas)
 - `ID_Activo`: `doc.id`
 - `Disciplina`: `producto.disciplina`
