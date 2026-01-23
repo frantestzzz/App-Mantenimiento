@@ -21,12 +21,26 @@ class DetalleReporteScreen extends StatelessWidget {
     final reportDocRef = productId != null
         ? FirebaseFirestore.instance
             .collection('productos')
+            .withConverter<Map<String, dynamic>>(
+              fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+              toFirestore: (data, _) => data,
+            )
             .doc(productId)
             .collection('reportes')
+            .withConverter<Map<String, dynamic>>(
+              fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+              toFirestore: (data, _) => data,
+            )
             .doc(reportId)
-        : FirebaseFirestore.instance.collection('reportes').doc(reportId);
+        : FirebaseFirestore.instance
+            .collection('reportes')
+            .withConverter<Map<String, dynamic>>(
+              fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+              toFirestore: (data, _) => data,
+            )
+            .doc(reportId);
 
-    return StreamBuilder<DocumentSnapshot>(
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: reportDocRef.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -37,7 +51,7 @@ class DetalleReporteScreen extends StatelessWidget {
           return Scaffold(appBar: AppBar(), body: const Center(child: Text("Reporte no encontrado.")));
         }
 
-        final data = snapshot.data!.data() as Map<String, dynamic>;
+        final data = snapshot.data!.data() ?? <String, dynamic>{};
         final String estado = data['estadoDetectado'] ?? data['estado_nuevo'] ?? data['estado'] ?? 'Desconocido';
         final bool isCompleted = estado.toLowerCase() == 'completado' || estado.toLowerCase() == 'operativo';
         

@@ -93,11 +93,14 @@ class _BaseViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('productos')
-          .where('disciplina', isEqualTo: disciplinaLabel)
-          .snapshots(),
+    final productsRef = FirebaseFirestore.instance
+        .collection('productos')
+        .withConverter<Map<String, dynamic>>(
+          fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+          toFirestore: (data, _) => data,
+        );
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: productsRef.where('disciplina', isEqualTo: disciplinaLabel).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -141,11 +144,14 @@ class _ReportesViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('productos')
-          .where('disciplina', isEqualTo: disciplinaLabel)
-          .snapshots(),
+    final productsRef = FirebaseFirestore.instance
+        .collection('productos')
+        .withConverter<Map<String, dynamic>>(
+          fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+          toFirestore: (data, _) => data,
+        );
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: productsRef.where('disciplina', isEqualTo: disciplinaLabel).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -183,11 +189,14 @@ class _ReportesViewer extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('productos')
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: productsRef
                     .doc(currentProductId)
                     .collection('reportes')
+                    .withConverter<Map<String, dynamic>>(
+                      fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+                      toFirestore: (data, _) => data,
+                    )
                     .snapshots(),
                 builder: (context, reportSnapshot) {
                   if (reportSnapshot.connectionState == ConnectionState.waiting) {
@@ -202,7 +211,7 @@ class _ReportesViewer extends StatelessWidget {
                       .map(
                         (doc) => DatasetRow.fromReporteDocument(
                           doc,
-                          ProductRecord(id: currentProductId, data: currentProductDoc.data() as Map<String, dynamic>),
+                          ProductRecord(id: currentProductId, data: currentProductDoc.data()),
                           columns,
                         ),
                       )
@@ -390,8 +399,11 @@ class DatasetRow {
     return idA.compareTo(idB);
   }
 
-  factory DatasetRow.fromBaseDocument(QueryDocumentSnapshot doc, List<DatasetColumn> columns) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory DatasetRow.fromBaseDocument(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    List<DatasetColumn> columns,
+  ) {
+    final data = doc.data();
     final values = <String, dynamic>{};
     values['nombre'] = data['nombre']?.toString() ?? '';
     final product = ProductRecord(id: doc.id, data: data);
@@ -404,11 +416,11 @@ class DatasetRow {
   }
 
   factory DatasetRow.fromReporteDocument(
-    QueryDocumentSnapshot doc,
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
     ProductRecord product,
     List<DatasetColumn> columns,
   ) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data();
     final values = <String, dynamic>{};
     values['nombre'] = product.data['nombre']?.toString() ?? '';
     final report = ReportRecord(id: doc.id, data: data);

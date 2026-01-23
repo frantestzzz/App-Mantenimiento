@@ -18,7 +18,13 @@ class DetalleProductoScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final productDocRef = FirebaseFirestore.instance.collection('productos').doc(productId);
+    final productDocRef = FirebaseFirestore.instance
+        .collection('productos')
+        .withConverter<Map<String, dynamic>>(
+          fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+          toFirestore: (data, _) => data,
+        )
+        .doc(productId);
     final schemaService = SchemaService();
 
     return Scaffold(
@@ -29,13 +35,13 @@ class DetalleProductoScreen extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
         // BOTONES EN LA BARRA SUPERIOR (PDF y EDITAR)
         actions: [
-          StreamBuilder<DocumentSnapshot>(
+          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
             stream: productDocRef.snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) return Container();
               if (!snapshot.hasData || !snapshot.data!.exists) return Container();
               
-              final data = snapshot.data!.data() as Map<String, dynamic>;
+              final data = snapshot.data!.data() ?? <String, dynamic>{};
               
               return Row(
                 children: [
@@ -50,10 +56,12 @@ class DetalleProductoScreen extends StatelessWidget {
 
                       try {
                         // Obtener los últimos 5 reportes para el PDF
-                        final reportesQuery = await FirebaseFirestore.instance
-                            .collection('productos')
-                            .doc(productId)
+                        final reportesQuery = await productDocRef
                             .collection('reportes')
+                            .withConverter<Map<String, dynamic>>(
+                              fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+                              toFirestore: (data, _) => data,
+                            )
                             .orderBy('fechaInspeccion', descending: true)
                             .limit(5)
                             .get();
@@ -98,7 +106,7 @@ class DetalleProductoScreen extends StatelessWidget {
       ),
       
       // CUERPO PRINCIPAL
-      body: StreamBuilder<DocumentSnapshot>(
+      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: productDocRef.snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -109,7 +117,7 @@ class DetalleProductoScreen extends StatelessWidget {
             return const Center(child: Text("Producto no encontrado."));
           }
 
-          final data = snapshot.data!.data() as Map<String, dynamic>;
+          final data = snapshot.data!.data() ?? <String, dynamic>{};
           final String productName = data['nombre'] ?? 'N/A';
           final String initialStatus = data['estado'] ?? 'operativo';
           final String productCategory = data['categoria'] ?? 'N/A';
@@ -224,12 +232,12 @@ class DetalleProductoScreen extends StatelessWidget {
         },
       ),
       // FAB para generar NUEVO reporte
-      floatingActionButton: StreamBuilder<DocumentSnapshot>(
+      floatingActionButton: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: productDocRef.snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData || !snapshot.data!.exists) return Container();
           
-          final data = snapshot.data!.data() as Map<String, dynamic>;
+          final data = snapshot.data!.data() ?? <String, dynamic>{};
           
           return FloatingActionButton(
             onPressed: () {
@@ -324,6 +332,13 @@ class DetalleProductoScreen extends StatelessWidget {
   }
   
   Widget _buildReportsList(String productId) {
+    final productRef = FirebaseFirestore.instance
+        .collection('productos')
+        .withConverter<Map<String, dynamic>>(
+          fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+          toFirestore: (data, _) => data,
+        )
+        .doc(productId);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: Column(
@@ -333,11 +348,13 @@ class DetalleProductoScreen extends StatelessWidget {
           const Text("Lista de Reportes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF444444))),
           const SizedBox(height: 10),
 
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('productos')
-                .doc(productId)
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: productRef
                 .collection('reportes')
+                .withConverter<Map<String, dynamic>>(
+                  fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+                  toFirestore: (data, _) => data,
+                )
                 .orderBy('fechaInspeccion', descending: true)
                 .snapshots(),
             builder: (context, snapshot) {
@@ -361,7 +378,7 @@ class DetalleProductoScreen extends StatelessWidget {
                 itemCount: reports.length,
                 itemBuilder: (context, index) {
                   final reportDoc = reports[index]; // Documento completo
-                  final reportData = reportDoc.data() as Map<String, dynamic>;
+                  final reportData = reportDoc.data();
                   
                   // Pasamos el ID del documento para la navegación
                   return _ReportCard(
