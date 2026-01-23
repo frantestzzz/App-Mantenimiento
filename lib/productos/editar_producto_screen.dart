@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Importar Supabase
+import 'package:appmantflutter/services/parametros_dataset_service.dart';
+import 'package:appmantflutter/services/parametros_schema_service.dart';
 import 'package:appmantflutter/services/schema_service.dart';
 
 class EditarProductoScreen extends StatefulWidget {
@@ -22,11 +24,24 @@ class EditarProductoScreen extends StatefulWidget {
 class _EditarProductoScreenState extends State<EditarProductoScreen> {
   final _formKey = GlobalKey<FormState>();
   final _schemaService = SchemaService();
+  final _parametrosSchemaService = ParametrosSchemaService();
+  final _datasetService = ParametrosDatasetService();
   
   // Controllers
   final _nombreController = TextEditingController();
   final _descripcionController = TextEditingController();
-  final _pisoController = TextEditingController();
+  final _nivelController = TextEditingController();
+  final _bloqueController = TextEditingController();
+  final _espacioController = TextEditingController();
+  final _tipoActivoController = TextEditingController();
+  final _condicionFisicaController = TextEditingController();
+  final _frecuenciaMantenimientoController = TextEditingController();
+  final _costoMantenimientoController = TextEditingController();
+  final _costoReemplazoController = TextEditingController();
+  final _observacionesController = TextEditingController();
+  final _nivelCriticidadController = TextEditingController();
+  final _impactoFallaController = TextEditingController();
+  final _riesgoNormativoController = TextEditingController();
   final Map<String, TextEditingController> _dynamicControllers = {};
 
   String _estado = 'operativo';
@@ -40,23 +55,52 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
     // Precargar datos iniciales
     _nombreController.text = widget.initialData['nombre'] ?? '';
     _descripcionController.text = widget.initialData['descripcion'] ?? '';
-    _pisoController.text =
-        widget.initialData['piso'] ?? widget.initialData['ubicacion']?['piso'] ?? widget.initialData['ubicacion']?['nivel'] ?? '';
+    _nivelController.text = _resolveNivel(widget.initialData);
+    _bloqueController.text = widget.initialData['bloque']?.toString() ??
+        widget.initialData['ubicacion']?['bloque']?.toString() ??
+        '';
+    _espacioController.text = widget.initialData['espacio']?.toString() ??
+        widget.initialData['ubicacion']?['area']?.toString() ??
+        '';
     _estado = widget.initialData['estado'] ?? 'operativo';
     // Asumimos que la base de datos guarda la URL COMPLETA ahora
     _currentImageUrl = widget.initialData['imagenUrl']; 
+
+    _parametrosSchemaService.seedSchemasIfMissing();
 
     final attrs = widget.initialData['attrs'] as Map<String, dynamic>? ?? {};
     for (final entry in attrs.entries) {
       _dynamicControllers[entry.key] = TextEditingController(text: entry.value?.toString() ?? '');
     }
+
+    _tipoActivoController.text = widget.initialData['tipoActivo']?.toString() ?? '';
+    _condicionFisicaController.text = widget.initialData['condicionFisica']?.toString() ?? '';
+    _frecuenciaMantenimientoController.text =
+        widget.initialData['frecuenciaMantenimientoMeses']?.toString() ?? '';
+    _costoMantenimientoController.text = widget.initialData['costoMantenimiento']?.toString() ?? '';
+    _costoReemplazoController.text = widget.initialData['costoReemplazo']?.toString() ?? '';
+    _observacionesController.text = widget.initialData['observaciones']?.toString() ?? '';
+    _nivelCriticidadController.text = widget.initialData['nivelCriticidad']?.toString() ?? '';
+    _impactoFallaController.text = widget.initialData['impactoFalla']?.toString() ?? '';
+    _riesgoNormativoController.text = widget.initialData['riesgoNormativo']?.toString() ?? '';
   }
 
   @override
   void dispose() {
     _nombreController.dispose();
     _descripcionController.dispose();
-    _pisoController.dispose();
+    _nivelController.dispose();
+    _bloqueController.dispose();
+    _espacioController.dispose();
+    _tipoActivoController.dispose();
+    _condicionFisicaController.dispose();
+    _frecuenciaMantenimientoController.dispose();
+    _costoMantenimientoController.dispose();
+    _costoReemplazoController.dispose();
+    _observacionesController.dispose();
+    _nivelCriticidadController.dispose();
+    _impactoFallaController.dispose();
+    _riesgoNormativoController.dispose();
     for (final controller in _dynamicControllers.values) {
       controller.dispose();
     }
@@ -130,25 +174,50 @@ Future<String?> _uploadToSupabase() async {
 
     // 2. Actualizar el documento en Firestore
     final disciplina = widget.initialData['disciplina'] ?? '';
-    final schema = disciplina.isNotEmpty ? await _schemaService.fetchSchema(disciplina) : null;
+    final disciplinaKey = disciplina.toString().toLowerCase();
+    final schema = disciplinaKey.isNotEmpty ? await _schemaService.fetchSchema(disciplinaKey) : null;
     final attrs = _collectDynamicAttrs(schema?.fields ?? []);
     final topLevelValues = _extractTopLevel(attrs);
 
-    await FirebaseFirestore.instance.collection('productos').doc(widget.productId).update({
+    final productData = {
       'nombre': _nombreController.text,
       'descripcion': _descripcionController.text,
       'imagenUrl': newImageUrl, // Guardamos la nueva URL (o la anterior si no se subió nada)
       'estado': _estado,
-      'piso': _pisoController.text,
+      'estadoOperativo': _estado,
+      'nivel': _nivelController.text,
+      'piso': _nivelController.text,
+      'categoriaActivo': widget.initialData['categoria'] ?? widget.initialData['categoriaActivo'],
+      'tipoActivo': _tipoActivoController.text.trim(),
+      'bloque': _bloqueController.text.trim(),
+      'espacio': _espacioController.text.trim(),
+      'condicionFisica': _condicionFisicaController.text.trim(),
+      'frecuenciaMantenimientoMeses': _parseInt(_frecuenciaMantenimientoController.text),
+      'costoMantenimiento': _parseDouble(_costoMantenimientoController.text),
+      'costoReemplazo': _parseDouble(_costoReemplazoController.text),
+      'observaciones': _observacionesController.text.trim(),
+      'nivelCriticidad': _parseInt(_nivelCriticidadController.text),
+      'impactoFalla': _impactoFallaController.text.trim(),
+      'riesgoNormativo': _riesgoNormativoController.text.trim(),
       'attrs': attrs,
       ...topLevelValues,
       'ubicacion': {
-        'piso': _pisoController.text,
-        'bloque': widget.initialData['ubicacion']?['bloque'] ?? '',
-        'area': widget.initialData['ubicacion']?['area'] ?? '',
+        'nivel': _nivelController.text,
+        'piso': _nivelController.text,
+        'bloque': _bloqueController.text.trim(),
+        'area': _espacioController.text.trim(),
       },
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+
+    final columns = await _parametrosSchemaService.fetchColumns(disciplinaKey, 'base');
+    final productRef = FirebaseFirestore.instance.collection('productos').doc(widget.productId);
+    await _datasetService.updateProductoWithDataset(
+      productRef: productRef,
+      productData: productData,
+      disciplina: disciplina,
+      columns: columns,
+    );
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -225,8 +294,71 @@ Future<String?> _uploadToSupabase() async {
             ),
 
             TextFormField(
-              controller: _pisoController,
-              decoration: const InputDecoration(labelText: 'Piso'),
+              controller: _bloqueController,
+              decoration: const InputDecoration(labelText: 'Bloque'),
+            ),
+
+            TextFormField(
+              controller: _nivelController,
+              decoration: const InputDecoration(labelText: 'Nivel'),
+            ),
+
+            TextFormField(
+              controller: _espacioController,
+              decoration: const InputDecoration(labelText: 'Espacio'),
+            ),
+
+            const SizedBox(height: 16),
+            const Text("Parámetros Excel", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _tipoActivoController,
+              decoration: const InputDecoration(labelText: 'Tipo de Activo'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _condicionFisicaController,
+              decoration: const InputDecoration(labelText: 'Condición Física'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _frecuenciaMantenimientoController,
+              decoration: const InputDecoration(labelText: 'Frecuencia Mantenimiento (meses)'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _costoMantenimientoController,
+              decoration: const InputDecoration(labelText: 'Costo Mantenimiento'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _costoReemplazoController,
+              decoration: const InputDecoration(labelText: 'Costo Reemplazo'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _observacionesController,
+              decoration: const InputDecoration(labelText: 'Observaciones'),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _nivelCriticidadController,
+              decoration: const InputDecoration(labelText: 'Nivel de Criticidad'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _impactoFallaController,
+              decoration: const InputDecoration(labelText: 'Impacto de Falla'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _riesgoNormativoController,
+              decoration: const InputDecoration(labelText: 'Riesgo Normativo'),
             ),
 
             Padding(
@@ -279,16 +411,31 @@ Future<String?> _uploadToSupabase() async {
 
   List<Widget> _buildDynamicFields(List<SchemaField> fields) {
     final excluded = <String>{
+      'id',
+      'idActivo',
       'nombre',
       'estado',
       'piso',
+      'nivel',
       'bloque',
       'area',
+      'espacio',
       'disciplina',
       'categoria',
+      'categoriaActivo',
+      'tipoActivo',
       'subcategoria',
       'descripcion',
       'fechaCompra',
+      'estadoOperativo',
+      'condicionFisica',
+      'frecuenciaMantenimientoMeses',
+      'costoMantenimiento',
+      'costoReemplazo',
+      'observaciones',
+      'nivelCriticidad',
+      'impactoFalla',
+      'riesgoNormativo',
       'updatedAt',
       'imagenUrl',
     };
@@ -324,6 +471,28 @@ Future<String?> _uploadToSupabase() async {
       attrs[field.key] = value;
     }
     return attrs;
+  }
+
+  int? _parseInt(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    return int.tryParse(trimmed);
+  }
+
+  double? _parseDouble(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    return double.tryParse(trimmed.replaceAll(',', '.'));
+  }
+
+  String _resolveNivel(Map<String, dynamic> data) {
+    final ubicacion = data['ubicacion'] as Map<String, dynamic>? ?? {};
+    final value = data['nivel'] ?? data['piso'] ?? ubicacion['nivel'] ?? ubicacion['piso'] ?? '';
+    return value.toString();
   }
 
   Map<String, dynamic> _extractTopLevel(Map<String, dynamic> attrs) {
