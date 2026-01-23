@@ -2,28 +2,24 @@
 
 A new Flutter project.
 
-## Parámetros Excel (Firestore only)
+## Parámetros (Firestore + Flutter, sin Functions ni Storage)
 
-Este repo genera y visualiza parámetros desde Firestore. **No se usa Firebase Storage ni Microsoft Graph/OneDrive.**
+Este repo implementa la experiencia de Parámetros **solo con Flutter + Firestore**:
 
-### Flujo general
+- **No** se usa Cloud Functions.
+- **No** se usa Firebase Storage.
+- **No** se usa Microsoft Graph/OneDrive.
+
+El Excel se genera localmente en el dispositivo usando Flutter.
+
+## Flujo general
 - Firestore (`productos`) es la fuente de verdad.
-- Cloud Functions genera los **esquemas** (`parametros_schemas`) a partir de los templates `.xlsx` locales.
-- Los datos para el visor se almacenan en `parametros_datasets`.
-- La app Flutter muestra las tablas y genera el Excel localmente en el dispositivo.
+- La app **siembra esquemas** en `parametros_schemas` si no existen.
+- La app **mantiene datasets** en `parametros_datasets/<disciplina>_<tipo>/rows` en cada alta/edición/borrado.
+- El visor lee `parametros_schemas` y el subcollection `rows` para mostrar la tabla.
+- El Excel se genera en el dispositivo y se guarda en documentos locales.
 
-## Endpoints HTTP (Functions 1st gen)
-
-### Inicializar esquemas y datasets
-Lee las plantillas en `functions/assets/excel_templates` y crea:
-- `parametros_schemas/<disciplina>_<tipo>`
-- `parametros_datasets/<disciplina>_<tipo>`
-
-```bash
-curl -X GET https://<region>-<project-id>.cloudfunctions.net/initParametrosSchemas
-```
-
-## Modelo de datos (Firestore)
+## Colecciones en Firestore
 
 ### parametros_schemas
 Doc ID: `<disciplina>_<tipo>` (ej: `electricas_base`)
@@ -34,8 +30,10 @@ Doc ID: `<disciplina>_<tipo>` (ej: `electricas_base`)
   "tipo": "base",
   "filenameDefault": "Electricas_Base_ES.xlsx",
   "columns": [
-    { "key": "id", "displayName": "id", "order": 0, "type": "text", "required": true },
-    { "key": "nombre", "displayName": "Nombre", "order": 1, "type": "text", "required": true }
+    { "key": "id", "displayName": "ID", "order": 0, "type": "text", "required": true },
+    { "key": "nombre", "displayName": "Nombre", "order": 1, "type": "text", "required": true },
+    { "key": "piso", "displayName": "Piso", "order": 2, "type": "text" },
+    { "key": "estado", "displayName": "Estado", "order": 3, "type": "text" }
   ],
   "aliases": { "nivel": "piso" },
   "updatedAt": "<timestamp>"
@@ -49,35 +47,45 @@ Doc ID: `<disciplina>_<tipo>` (ej: `electricas_base`)
 {
   "disciplina": "electricas",
   "tipo": "base",
-  "columns": [ ... ],
-  "rowsById": {
-    "<id>": { "id": "<id>", "values": { "nombre": "..." }, "updatedAt": "<timestamp>" }
-  },
+  "schemaRef": "parametros_schemas/electricas_base",
   "rowCount": 12,
-  "generatedAt": "<timestamp>",
-  "storageMode": "document"
+  "updatedAt": "<timestamp>"
 }
 ```
 
-> Si el documento crece demasiado, se cambia automáticamente a `storageMode = "subcollection"` y las filas se almacenan en `parametros_datasets/<id>/rows/<rowId>`.
+Subcollection de filas:
+`parametros_datasets/<disciplina>_<tipo>/rows/<rowId>`
 
-## Mapeo de columnas
-- Se usa la fila 1 del template como headers.
-- Si no existe una columna `id`, se agrega como primera columna.
-- Para cada fila:
-  - `id`: ID del documento de `productos`.
-  - `nombre`: `doc.nombre`.
-  - `piso`: `doc.piso` o fallback `doc.ubicacion.nivel` o `doc.nivel`.
-  - `estado`: `doc.estado`.
-  - Otras columnas: `doc.attrs[key]` → `doc[key]` → vacío.
-
-## Viewer y generación local
-La pantalla de Parámetros permite:
-- Seleccionar disciplina.
-- Ver tablas Base/Reportes.
-- Generar el Excel localmente con el nombre `filenameDefault`.
-
-## Despliegue
-```bash
-firebase deploy --only functions
+```json
+{
+  "id": "<rowId>",
+  "nombre": "...",
+  "piso": "...",
+  "estado": "...",
+  "values": { "<key>": "<stringValue>" },
+  "updatedAt": "<timestamp>"
+}
 ```
+
+## Sembrado de esquemas
+La app siembra automáticamente los 8 esquemas requeridos (4 disciplinas x base/reportes) si la colección está vacía.
+
+## Mapeo de columnas (producto → fila)
+- `id`: ID del documento de `productos`.
+- `nombre`: `producto.nombre`.
+- `piso`: `producto.piso` o `producto.ubicacion.nivel` o `producto.nivel`.
+- `estado`: `producto.estado`.
+- Otras columnas: `producto.attrs[key]` → `producto[key]` → vacío.
+
+## Generación de Excel (en dispositivo)
+Desde el visor, el botón **Generar Excel** crea el archivo `.xlsx` con:
+- Nombre exacto `filenameDefault` (por disciplina y tipo).
+- Hoja "Parametros".
+- Header con `columns.displayName`.
+- Filas con los valores del dataset.
+
+El archivo se guarda en el directorio de documentos local y se abre con `open_filex`.
+
+## Nota importante
+Como no hay Functions ni triggers, los datasets se actualizan **solo** cuando la app crea/edita/borra productos usando los servicios locales.
+Si se editan documentos directamente en Firestore fuera de la app, el dataset no se sincroniza automáticamente.

@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 
-class ParametrosViewerScreen extends StatelessWidget {
+import '../services/parametros_schema_service.dart';
+
+class ParametrosViewerScreen extends StatefulWidget {
   final String disciplina;
   final String tipo;
 
@@ -16,69 +18,85 @@ class ParametrosViewerScreen extends StatelessWidget {
     required this.tipo,
   });
 
-  String get _docId => '${disciplina}_$tipo';
+  @override
+  State<ParametrosViewerScreen> createState() => _ParametrosViewerScreenState();
+}
+
+class _ParametrosViewerScreenState extends State<ParametrosViewerScreen> {
+  late final Future<void> _seedFuture;
+  final _schemaService = ParametrosSchemaService();
+
+  String get _docId => '${widget.disciplina}_${widget.tipo}';
+
+  @override
+  void initState() {
+    super.initState();
+    _seedFuture = _schemaService.seedSchemasIfMissing();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '${disciplina.toUpperCase()} - ${tipo.toUpperCase()}',
+          '${widget.disciplina.toUpperCase()} - ${widget.tipo.toUpperCase()}',
           style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: const Color(0xFF2C3E50),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('parametros_schemas').doc(_docId).snapshots(),
-        builder: (context, schemaSnapshot) {
-          if (schemaSnapshot.connectionState == ConnectionState.waiting) {
+      body: FutureBuilder<void>(
+        future: _seedFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!schemaSnapshot.hasData || !schemaSnapshot.data!.exists) {
-            return const Center(child: Text('No hay esquema disponible.'));
-          }
-
-          final schemaData = schemaSnapshot.data!.data() as Map<String, dynamic>;
-          final filename = schemaData['filenameDefault']?.toString() ?? '${disciplina}_$tipo.xlsx';
-          final columns = (schemaData['columns'] as List<dynamic>? ?? [])
-              .map((column) => _SchemaColumn.fromMap(column as Map<String, dynamic>))
-              .toList()
-            ..sort((a, b) => a.order.compareTo(b.order));
-
           return StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance.collection('parametros_datasets').doc(_docId).snapshots(),
-            builder: (context, datasetSnapshot) {
-              if (datasetSnapshot.connectionState == ConnectionState.waiting) {
+            stream: FirebaseFirestore.instance.collection('parametros_schemas').doc(_docId).snapshots(),
+            builder: (context, schemaSnapshot) {
+              if (schemaSnapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              if (!datasetSnapshot.hasData || !datasetSnapshot.data!.exists) {
-                return const Center(child: Text('No hay datos disponibles.'));
+              if (!schemaSnapshot.hasData || !schemaSnapshot.data!.exists) {
+                return const Center(child: Text('No hay esquema disponible.'));
               }
 
-              final datasetData = datasetSnapshot.data!.data() as Map<String, dynamic>;
-              final storageMode = datasetData['storageMode']?.toString() ?? 'document';
-
-              if (storageMode == 'subcollection') {
-                return _RowsFromSubcollection(
-                  docId: _docId,
-                  columns: columns,
-                  filename: filename,
-                );
-              }
-
-              final rowsById = (datasetData['rowsById'] as Map<String, dynamic>? ?? {});
-              final rows = rowsById.entries
-                  .map((entry) => _DatasetRow.fromMap(entry.value as Map<String, dynamic>))
+              final schemaData = schemaSnapshot.data!.data() as Map<String, dynamic>;
+              final filename =
+                  schemaData['filenameDefault']?.toString() ?? '${widget.disciplina}_${widget.tipo}.xlsx';
+              final columns = (schemaData['columns'] as List<dynamic>? ?? [])
+                  .map((column) => _SchemaColumn.fromMap(column as Map<String, dynamic>))
                   .toList()
-                ..sort(_rowSorter);
+                ..sort((a, b) => a.order.compareTo(b.order));
 
-              return _ViewerContent(
-                columns: columns,
-                rows: rows,
-                filename: filename,
+              return StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('parametros_datasets')
+                    .doc(_docId)
+                    .collection('rows')
+                    .snapshots(),
+                builder: (context, rowsSnapshot) {
+                  if (rowsSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!rowsSnapshot.hasData) {
+                    return const Center(child: Text('No hay parámetros disponibles.'));
+                  }
+
+                  final rows = rowsSnapshot.data!.docs
+                      .map((doc) => _DatasetRow.fromMap(doc.data() as Map<String, dynamic>))
+                      .toList()
+                    ..sort(_rowSorter);
+
+                  return _ViewerContent(
+                    columns: columns,
+                    rows: rows,
+                    filename: filename,
+                  );
+                },
               );
             },
           );
@@ -88,60 +106,13 @@ class ParametrosViewerScreen extends StatelessWidget {
   }
 
   int _rowSorter(_DatasetRow a, _DatasetRow b) {
-    final nombreA = a.values['nombre']?.toString() ?? '';
-    final nombreB = b.values['nombre']?.toString() ?? '';
+    final nombreA = a.nombre.toLowerCase();
+    final nombreB = b.nombre.toLowerCase();
     final nameCompare = nombreA.compareTo(nombreB);
     if (nameCompare != 0) {
       return nameCompare;
     }
     return a.id.compareTo(b.id);
-  }
-}
-
-class _RowsFromSubcollection extends StatelessWidget {
-  final String docId;
-  final List<_SchemaColumn> columns;
-  final String filename;
-
-  const _RowsFromSubcollection({
-    required this.docId,
-    required this.columns,
-    required this.filename,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('parametros_datasets').doc(docId).collection('rows').snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (!snapshot.hasData) {
-          return const Center(child: Text('No hay datos disponibles.'));
-        }
-
-        final rows = snapshot.data!.docs
-            .map((doc) => _DatasetRow.fromMap(doc.data() as Map<String, dynamic>))
-            .toList()
-          ..sort((a, b) {
-            final nombreA = a.values['nombre']?.toString() ?? '';
-            final nombreB = b.values['nombre']?.toString() ?? '';
-            final nameCompare = nombreA.compareTo(nombreB);
-            if (nameCompare != 0) {
-              return nameCompare;
-            }
-            return a.id.compareTo(b.id);
-          });
-
-        return _ViewerContent(
-          columns: columns,
-          rows: rows,
-          filename: filename,
-        );
-      },
-    );
   }
 }
 
@@ -162,7 +133,7 @@ class _ViewerContent extends StatelessWidget {
       children: [
         Expanded(
           child: rows.isEmpty
-              ? const Center(child: Text('No hay filas para mostrar.'))
+              ? const Center(child: Text('No hay parámetros disponibles.'))
               : SingleChildScrollView(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -174,7 +145,7 @@ class _ViewerContent extends StatelessWidget {
                           .map(
                             (row) => DataRow(
                               cells: columns
-                                  .map((column) => DataCell(Text(row.values[column.key]?.toString() ?? '')))
+                                  .map((column) => DataCell(Text(row.valueFor(column.key))))
                                   .toList(),
                             ),
                           )
@@ -210,9 +181,7 @@ class _ViewerContent extends StatelessWidget {
       sheet.appendRow(columns.map((column) => column.displayName).toList());
 
       for (final row in rows) {
-        final rowValues = columns
-            .map((column) => row.values[column.key] ?? '')
-            .toList();
+        final rowValues = columns.map((column) => row.valueFor(column.key)).toList();
         sheet.appendRow(rowValues);
       }
 
@@ -256,17 +225,41 @@ class _SchemaColumn {
 
 class _DatasetRow {
   final String id;
+  final String nombre;
+  final String piso;
+  final String estado;
   final Map<String, dynamic> values;
 
   _DatasetRow({
     required this.id,
+    required this.nombre,
+    required this.piso,
+    required this.estado,
     required this.values,
   });
 
   factory _DatasetRow.fromMap(Map<String, dynamic> map) {
     return _DatasetRow(
       id: map['id']?.toString() ?? '',
+      nombre: map['nombre']?.toString() ?? '',
+      piso: map['piso']?.toString() ?? '',
+      estado: map['estado']?.toString() ?? '',
       values: Map<String, dynamic>.from(map['values'] as Map? ?? {}),
     );
+  }
+
+  String valueFor(String key) {
+    switch (key) {
+      case 'id':
+        return id;
+      case 'nombre':
+        return nombre;
+      case 'piso':
+        return piso;
+      case 'estado':
+        return estado;
+      default:
+        return values[key]?.toString() ?? '';
+    }
   }
 }

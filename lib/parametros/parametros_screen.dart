@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/parametros_schema_service.dart';
 import 'parametros_viewer_screen.dart';
 
 typedef DisciplinaOption = ({String key, String label, bool enabled});
@@ -22,11 +23,13 @@ class _ParametrosScreenState extends State<ParametrosScreen> {
   ];
 
   late String _selectedDisciplina;
+  final _schemaService = ParametrosSchemaService();
 
   @override
   void initState() {
     super.initState();
     _selectedDisciplina = _options.firstWhere((option) => option.enabled).key;
+    _schemaService.seedSchemasIfMissing();
   }
 
   @override
