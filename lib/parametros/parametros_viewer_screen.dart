@@ -62,6 +62,7 @@ class _ParametrosViewerScreenState extends State<ParametrosViewerScreen> {
           if (widget.tipo == 'reportes') {
             return _ReportesViewer(
               disciplinaLabel: widget.disciplinaLabel,
+              disciplinaKey: widget.disciplinaKey,
               columns: columns,
               selectedProductId: _selectedProductId,
               onProductSelected: (productId) => setState(() => _selectedProductId = productId),
@@ -71,6 +72,7 @@ class _ParametrosViewerScreenState extends State<ParametrosViewerScreen> {
 
           return _BaseViewer(
             disciplinaLabel: widget.disciplinaLabel,
+            disciplinaKey: widget.disciplinaKey,
             columns: columns,
             templateAssetPath: _templateAssetPath,
           );
@@ -82,11 +84,13 @@ class _ParametrosViewerScreenState extends State<ParametrosViewerScreen> {
 
 class _BaseViewer extends StatelessWidget {
   final String disciplinaLabel;
+  final String disciplinaKey;
   final List<DatasetColumn> columns;
   final String templateAssetPath;
 
   const _BaseViewer({
     required this.disciplinaLabel,
+    required this.disciplinaKey,
     required this.columns,
     required this.templateAssetPath,
   });
@@ -100,7 +104,7 @@ class _BaseViewer extends StatelessWidget {
           toFirestore: (data, _) => data,
         );
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: productsRef.where('disciplina', isEqualTo: disciplinaLabel).snapshots(),
+      stream: productsRef.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -111,6 +115,13 @@ class _BaseViewer extends StatelessWidget {
         }
 
         final rows = snapshot.data!.docs
+            .where(
+              (doc) => _matchesDisciplina(
+                doc.data(),
+                disciplinaKey: disciplinaKey,
+                disciplinaLabel: disciplinaLabel,
+              ),
+            )
             .map((doc) => DatasetRow.fromBaseDocument(doc, columns))
             .toList()
           ..sort(DatasetRow.sortByNombre);
@@ -129,6 +140,7 @@ class _BaseViewer extends StatelessWidget {
 
 class _ReportesViewer extends StatelessWidget {
   final String disciplinaLabel;
+  final String disciplinaKey;
   final List<DatasetColumn> columns;
   final String? selectedProductId;
   final ValueChanged<String?> onProductSelected;
@@ -136,6 +148,7 @@ class _ReportesViewer extends StatelessWidget {
 
   const _ReportesViewer({
     required this.disciplinaLabel,
+    required this.disciplinaKey,
     required this.columns,
     required this.selectedProductId,
     required this.onProductSelected,
@@ -151,17 +164,28 @@ class _ReportesViewer extends StatelessWidget {
           toFirestore: (data, _) => data,
         );
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: productsRef.where('disciplina', isEqualTo: disciplinaLabel).snapshots(),
+      stream: productsRef.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        if (!snapshot.hasData) {
           return const Center(child: Text('No hay productos para reportes.'));
         }
 
-        final products = snapshot.data!.docs;
+        final products = snapshot.data!.docs
+            .where(
+              (doc) => _matchesDisciplina(
+                doc.data(),
+                disciplinaKey: disciplinaKey,
+                disciplinaLabel: disciplinaLabel,
+              ),
+            )
+            .toList();
+        if (products.isEmpty) {
+          return const Center(child: Text('No hay productos para reportes.'));
+        }
         final currentProductId = selectedProductId ?? products.first.id;
         final currentProductDoc = products.firstWhere((doc) => doc.id == currentProductId, orElse: () => products.first);
         if (currentProductId != selectedProductId) {
@@ -181,7 +205,7 @@ class _ReportesViewer extends StatelessWidget {
                     .map(
                       (doc) => DropdownMenuItem(
                         value: doc.id,
-                        child: Text(doc['nombre']?.toString() ?? doc.id),
+                        child: Text(doc.data()['nombre']?.toString() ?? doc.id),
                       ),
                     )
                     .toList(),
@@ -445,4 +469,20 @@ String? _findValueByNormalizedHeader(Map<String, dynamic> values, String target)
 String _buildTemplatePath(String disciplinaLabel, String tipo) {
   final tipoLabel = tipo == 'base' ? 'Base' : 'Reportes';
   return 'assets/excel_templates/${disciplinaLabel}_${tipoLabel}_ES.xlsx';
+}
+
+bool _matchesDisciplina(
+  Map<String, dynamic> data, {
+  required String disciplinaKey,
+  required String disciplinaLabel,
+}) {
+  final keyValue = data['disciplinaKey']?.toString().toLowerCase();
+  if (keyValue != null && keyValue.isNotEmpty) {
+    return keyValue == disciplinaKey.toLowerCase();
+  }
+  final labelValue = data['disciplinaLabel']?.toString() ?? data['disciplina']?.toString();
+  if (labelValue == null) {
+    return false;
+  }
+  return labelValue.toLowerCase() == disciplinaLabel.toLowerCase();
 }

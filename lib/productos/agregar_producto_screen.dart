@@ -125,13 +125,16 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
       final nivelValue = _nivelCtrl.text;
 
       final productRef = FirebaseFirestore.instance.collection('productos').doc();
+      final disciplinaKey = _disciplina.toLowerCase();
+      final disciplinaLabel = _disciplina;
       final productData = {
         'nombre': _nombreCtrl.text,
         'descripcion': _descripcionCtrl.text,
         'categoria': _categoria,
         'categoriaActivo': _categoria,
-        'disciplina': _disciplina,
-        'disciplinaKey': _disciplina.toLowerCase(),
+        'disciplina': disciplinaLabel,
+        'disciplinaKey': disciplinaKey,
+        'disciplinaLabel': disciplinaLabel,
         'subcategoria': _subcategoria,
         'estado': _estado,
         'estadoOperativo': _estado,
