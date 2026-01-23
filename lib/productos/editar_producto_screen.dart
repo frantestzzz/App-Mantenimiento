@@ -182,7 +182,6 @@ Future<String?> _uploadToSupabase() async {
     final productData = {
       'nombre': _nombreController.text,
       'descripcion': _descripcionController.text,
-      'imagenUrl': newImageUrl, // Guardamos la nueva URL (o la anterior si no se subió nada)
       'estado': _estado,
       'estadoOperativo': _estado,
       'nivel': _nivelController.text,
@@ -209,6 +208,9 @@ Future<String?> _uploadToSupabase() async {
       },
       'updatedAt': FieldValue.serverTimestamp(),
     };
+    if (newImageUrl != null && newImageUrl.isNotEmpty) {
+      productData['imagenUrl'] = newImageUrl;
+    }
 
     final columns = await _parametrosSchemaService.fetchColumns(disciplinaKey, 'base');
     final productRef = FirebaseFirestore.instance.collection('productos').doc(widget.productId);
@@ -271,7 +273,10 @@ Future<String?> _uploadToSupabase() async {
                                 return const Center(child: CircularProgressIndicator());
                               },
                             )
-                          : const Icon(Icons.add_a_photo, size: 50, color: Colors.grey),
+                          : const Text(
+                              'Sin foto',
+                              style: TextStyle(color: Colors.grey, fontSize: 16),
+                            ),
                 ),
               ),
             ),
