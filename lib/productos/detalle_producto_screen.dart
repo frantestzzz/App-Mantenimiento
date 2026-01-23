@@ -367,6 +367,7 @@ class DetalleProductoScreen extends StatelessWidget {
                   return _ReportCard(
                     reporte: reportData,
                     reportId: reportDoc.id, 
+                    productId: productId,
                   );
                 },
               );
@@ -438,8 +439,14 @@ class _DetailRow extends StatelessWidget {
 class _ReportCard extends StatelessWidget {
     final Map<String, dynamic> reporte;
     final String reportId; // ID necesario para navegar
+    final String productId;
 
-    const _ReportCard({required this.reporte, required this.reportId, super.key});
+    const _ReportCard({
+      required this.reporte,
+      required this.reportId,
+      required this.productId,
+      super.key,
+    });
 
     @override
     Widget build(BuildContext context) {
@@ -464,6 +471,7 @@ class _ReportCard extends StatelessWidget {
                 MaterialPageRoute(
                   builder: (context) => DetalleReporteScreen(
                     reportId: reportId,
+                    productId: productId,
                     initialReportData: reporte,
                   ),
                 ),
@@ -482,7 +490,7 @@ class _ReportCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text("Encargado: ${reporte['encargado'] ?? 'N/A'}", style: const TextStyle(fontSize: 15, color: Color(0xFF555555))),
+                  Text("Responsable: ${reporte['responsable'] ?? 'N/A'}", style: const TextStyle(fontSize: 15, color: Color(0xFF555555))),
                   Text("Motivo: ${reporte['descripcion'] ?? reporte['motivo'] ?? 'Sin descripción.'}", style: const TextStyle(fontSize: 15, color: Color(0xFF555555))),
                   const SizedBox(height: 8),
                   Align(

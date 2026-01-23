@@ -6,17 +6,25 @@ import 'package:appmantflutter/services/pdf_service.dart';
 
 class DetalleReporteScreen extends StatelessWidget {
   final String reportId;
+  final String? productId;
   final Map<String, dynamic>? initialReportData;
 
   const DetalleReporteScreen({
     super.key,
     required this.reportId,
+    this.productId,
     this.initialReportData,
   });
 
   @override
   Widget build(BuildContext context) {
-    final reportDocRef = FirebaseFirestore.instance.collection('reportes').doc(reportId);
+    final reportDocRef = productId != null
+        ? FirebaseFirestore.instance
+            .collection('productos')
+            .doc(productId)
+            .collection('reportes')
+            .doc(reportId)
+        : FirebaseFirestore.instance.collection('reportes').doc(reportId);
 
     return StreamBuilder<DocumentSnapshot>(
       stream: reportDocRef.snapshots(),
@@ -123,7 +131,10 @@ class DetalleReporteScreen extends StatelessWidget {
         children: [
           Text("Reporte N° ${data['nro'] ?? '0000'}", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 5),
-          Text("Equipo: ${data['activo_nombre'] ?? 'N/A'}", style: const TextStyle(fontSize: 16, color: Color(0xFF666666))),
+          Text(
+            "Equipo: ${data['activo_nombre'] ?? data['activoNombre'] ?? data['activo'] ?? 'N/A'}",
+            style: const TextStyle(fontSize: 16, color: Color(0xFF666666)),
+          ),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -183,8 +194,8 @@ class DetalleReporteScreen extends StatelessWidget {
       icon: FontAwesomeIcons.circleInfo,
       content: Column(
         children: [
-          _DetailRow(icon: FontAwesomeIcons.userTag, label: "Encargado", value: data['encargado'] ?? '--'),
-          _DetailRow(icon: FontAwesomeIcons.tag, label: "Tipo de Reporte", value: data['tipo_reporte'] ?? 'General'),
+          _DetailRow(icon: FontAwesomeIcons.userTag, label: "Responsable", value: data['responsable'] ?? '--'),
+          _DetailRow(icon: FontAwesomeIcons.tag, label: "Tipo de Reporte", value: data['tipoReporte'] ?? 'General'),
           // Mostramos el Bloque correcto
           _DetailRow(icon: FontAwesomeIcons.building, label: "Bloque", value: ubicacion['bloque'] ?? '--'),
           _DetailRow(

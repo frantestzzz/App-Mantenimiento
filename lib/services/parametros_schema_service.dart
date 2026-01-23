@@ -50,7 +50,7 @@ class ParametrosSchemaDefinition {
       'tipo': tipo,
       'filenameDefault': filenameDefault,
       'columns': columns.map((column) => column.toMap()).toList(),
-      'aliases': {'nivel': 'piso'},
+      'aliases': {},
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
