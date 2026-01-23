@@ -90,8 +90,8 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
   }
 
   // --- 2. SUBIR A SUPABASE ---
-  Future<String> _uploadImageToSupabase() async {
-    if (_imageFile == null) return '';
+  Future<String?> _uploadImageToSupabase() async {
+    if (_imageFile == null) return null;
 
     final supabase = Supabase.instance.client;
     final fileExt = _imageFile!.path.split('.').last;
@@ -104,23 +104,18 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
       return publicUrl;
     } catch (e) {
       print("Error subiendo imagen: $e");
-      return '';
+      return null;
     }
   }
 
   // --- 3. GUARDAR EN FIRESTORE ---
   Future<void> _guardarProducto() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_imageFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Por favor selecciona una imagen")));
-      return;
-    }
-
     setState(() => _isUploading = true);
 
     try {
       // A. Subir imagen
-      final String imageUrl = await _uploadImageToSupabase();
+      final String? imageUrl = await _uploadImageToSupabase();
 
       // B. Guardar documento
       final schema = await _schemaService.fetchSchema(_disciplina.toLowerCase());
@@ -143,7 +138,6 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
         'fechaCompra': _fechaCompra, // Se guarda como Timestamp
         'fechaCreacion': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'imagenUrl': imageUrl,
         'nivel': nivelValue,
         'piso': nivelValue,
         'tipoActivo': _tipoActivoCtrl.text.trim(),
@@ -168,6 +162,9 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
           'area': _areaCtrl.text,
         }
       };
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        productData['imagenUrl'] = imageUrl;
+      }
 
       final columns = await _parametrosSchemaService.fetchColumns(_disciplina.toLowerCase(), 'base');
       await _datasetService.createProductoWithDataset(
@@ -217,10 +214,19 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
                 onTap: _pickImage,
                 child: Container(
                   height: 200,
-                  decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey)),
-                  child: _imageFile != null 
-                    ? Image.file(_imageFile!, fit: BoxFit.cover)
-                    : const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.camera_alt, size: 50, color: Colors.grey), Text("Toca para agregar foto")]),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: _imageFile != null
+                      ? Image.file(_imageFile!, fit: BoxFit.cover)
+                      : const Center(
+                          child: Text(
+                            "Sin foto",
+                            style: TextStyle(color: Colors.grey, fontSize: 16),
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 20),
