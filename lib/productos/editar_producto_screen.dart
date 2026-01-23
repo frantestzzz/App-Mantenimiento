@@ -218,7 +218,7 @@ Future<String?> _uploadToSupabase() async {
     await _datasetService.updateProductoWithDataset(
       productRef: productRef,
       productData: productData,
-      disciplina: disciplina,
+      disciplina: disciplinaLabel,
       columns: columns,
     );
 

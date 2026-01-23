@@ -48,7 +48,7 @@ class _ParametrosScreenState extends State<ParametrosScreen> {
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final option = _options[index];
-            return _DisciplinaCard(
+            return _ParametrosDisciplinaCard(
               option: option,
               onOpen: () => _openDisciplina(context, option),
             );
@@ -72,11 +72,11 @@ class _ParametrosScreenState extends State<ParametrosScreen> {
   }
 }
 
-class _DisciplinaCard extends StatelessWidget {
+class _ParametrosDisciplinaCard extends StatelessWidget {
   final DisciplinaOption option;
   final VoidCallback onOpen;
 
-  const _DisciplinaCard({
+  const _ParametrosDisciplinaCard({
     required this.option,
     required this.onOpen,
   });
