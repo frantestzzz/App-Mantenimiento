@@ -181,12 +181,10 @@ class _ViewerContent extends StatelessWidget {
       final excel = Excel.createExcel();
       final sheet = excel['Parametros'];
 
-      sheet.appendRow(columns.map((column) => column.displayName).toList());
+      sheet.appendRow(columns.map((column) => _cellValue(column.displayName)).toList());
 
       for (final row in rows) {
-        final rowValues = columns
-            .map((column) => _cellValue(row.values[column.key]))
-            .toList();
+        final rowValues = columns.map((column) => _cellValue(row.values[column.key])).toList();
         sheet.appendRow(rowValues);
       }
 
@@ -208,14 +206,17 @@ class _ViewerContent extends StatelessWidget {
     }
   }
 
-  dynamic _cellValue(dynamic value) {
+  CellValue? _cellValue(dynamic value) {
     if (value == null) {
-      return '';
+      return const TextCellValue('');
     }
-    if (value is num || value is bool) {
-      return value;
+    if (value is bool) {
+      return BoolCellValue(value);
     }
-    return value.toString();
+    if (value is num) {
+      return DoubleCellValue(value.toDouble());
+    }
+    return TextCellValue(value.toString());
   }
 
   String _buildFilename() {
