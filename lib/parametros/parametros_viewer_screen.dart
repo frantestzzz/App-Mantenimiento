@@ -1,13 +1,10 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../services/excel_row_mapper.dart';
 import '../services/excel_template_service.dart';
+import '../services/excel_export_service.dart';
 
 class ParametrosViewerScreen extends StatefulWidget {
   final String disciplinaKey;
@@ -309,12 +306,8 @@ class _ViewerContent extends StatelessWidget {
         throw Exception('No se pudo generar el archivo.');
       }
 
-      final directory = await getApplicationDocumentsDirectory();
       final filename = _buildFilename();
-      final file = File('${directory.path}/$filename');
-      await file.writeAsBytes(bytes, flush: true);
-
-      await OpenFilex.open(file.path);
+      await exportExcelFile(bytes, filename);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error al generar Excel: $e')),
