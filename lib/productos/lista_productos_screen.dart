@@ -43,6 +43,17 @@ class ListaProductosScreen extends StatelessWidget {
             ),
             
             _buildProductStream('fuera de servicio', context),
+
+            // --- SECCIÓN: DEFECTUOSO ---
+            const Padding(
+              padding: EdgeInsets.only(top: 30, left: 15, bottom: 5),
+              child: Text(
+                "⚠️ DEFECTUOSO",
+                style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+              ),
+            ),
+
+            _buildProductStream('defectuoso', context),
             
             // --- SECCIÓN: OPERATIVO ---
             const Padding(
@@ -162,7 +173,12 @@ class _ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isOperativo = estado.toLowerCase() == 'operativo';
-    final Color dotColor = isOperativo ? const Color(0xFF2ECC71) : const Color(0xFFE74C3C);
+    final bool isDefectuoso = estado.toLowerCase() == 'defectuoso';
+    final Color dotColor = isOperativo
+        ? const Color(0xFF2ECC71)
+        : isDefectuoso
+            ? const Color(0xFFF39C12)
+            : const Color(0xFFE74C3C);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
@@ -224,10 +240,16 @@ class _ProductCard extends StatelessWidget {
                       Row(
                         children: [
                           Container(
-                            width: 8, height: 8,
+                            width: 8,
+                            height: 8,
                             decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
                           ),
                           const SizedBox(width: 6),
+                          if (isDefectuoso)
+                            const Padding(
+                              padding: EdgeInsets.only(right: 6),
+                              child: Icon(Icons.warning_amber, size: 14, color: Color(0xFFF39C12)),
+                            ),
                           Text(
                             estado.toUpperCase(),
                             style: TextStyle(color: dotColor, fontSize: 12, fontWeight: FontWeight.bold),
