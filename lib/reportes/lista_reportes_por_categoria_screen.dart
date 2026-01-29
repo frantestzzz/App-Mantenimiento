@@ -137,13 +137,19 @@ class _ReporteListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String estado = reporte['estadoDetectado'] ??
+    final String estado = reporte['estadoOperativo'] ??
         reporte['estadoNuevo'] ??
+        reporte['estadoDetectado'] ??
         reporte['estado_nuevo'] ??
         reporte['estado'] ??
-        'Pendiente';
+        'registrado';
     final bool isOk = estado.toLowerCase() == 'operativo' || estado.toLowerCase() == 'completado';
-    final Color statusColor = isOk ? Colors.green : Colors.red;
+    final bool isDefectuoso = estado.toLowerCase() == 'defectuoso';
+    final Color statusColor = isOk
+        ? Colors.green
+        : isDefectuoso
+            ? Colors.orange
+            : Colors.red;
     
     // Fecha
     final Timestamp? ts = reporte['fechaInspeccion'] ?? reporte['fecha'];
@@ -203,7 +209,10 @@ class _ReporteListCard extends StatelessWidget {
                   color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(estado.toUpperCase(), style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                child: Text(
+                  _formatEstadoLabel(estado),
+                  style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
@@ -211,4 +220,15 @@ class _ReporteListCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatEstadoLabel(String estado) {
+  final normalized = estado.replaceAll('_', ' ');
+  if (normalized.isEmpty) {
+    return estado;
+  }
+  return normalized
+      .split(' ')
+      .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
+      .join(' ');
 }
