@@ -132,6 +132,7 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
       final productRef = FirebaseFirestore.instance.collection('productos').doc();
       final productData = {
         'nombre': _nombreCtrl.text,
+        'nombreProducto': _nombreCtrl.text,
         'descripcion': _descripcionCtrl.text,
         'categoria': _categoria,
         'categoriaActivo': _categoria,
@@ -440,15 +441,18 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
   }
 
   Future<int> _getAndIncrementActivoCounter(String disciplinaKey) async {
-    final counterRef = FirebaseFirestore.instance.collection('metadata').doc('counters');
-    final counterKey = 'activo_$disciplinaKey';
+    final counterRef = FirebaseFirestore.instance
+        .collection('metadata')
+        .doc('counters')
+        .collection('activos')
+        .doc(disciplinaKey);
 
     return FirebaseFirestore.instance.runTransaction((transaction) async {
       final snapshot = await transaction.get(counterRef);
       final data = snapshot.data() ?? <String, dynamic>{};
-      final currentNumber = (data[counterKey] as int?) ?? 0;
+      final currentNumber = (data['seq'] as int?) ?? 0;
       final nextNumber = currentNumber + 1;
-      transaction.set(counterRef, {counterKey: nextNumber}, SetOptions(merge: true));
+      transaction.set(counterRef, {'seq': nextNumber}, SetOptions(merge: true));
       return nextNumber;
     });
   }

@@ -189,6 +189,7 @@ Future<String?> _uploadToSupabase() async {
 
     final productData = {
       'nombre': _nombreController.text,
+      'nombreProducto': _nombreController.text,
       'descripcion': _descripcionController.text,
       'estado': _estado,
       'estadoOperativo': _estado,

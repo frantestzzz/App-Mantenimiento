@@ -171,15 +171,19 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
             toFirestore: (data, _) => data,
           );
 
-      await productsRef
-          .doc(widget.productId)
-          .collection('reportes')
-          .withConverter<Map<String, dynamic>>(
-            fromFirestore: (snapshot, _) => snapshot.data() ?? {},
-            toFirestore: (data, _) => data,
-          )
-          .add({
+      final productRef = productsRef.doc(widget.productId);
+      final productSnap = await productRef.get();
+      final productData = productSnap.data() ?? {};
+      final reportRef = productRef.collection('reportes').doc();
+      final reportData = {
         'nro': reportNumber,
+        'productId': widget.productId,
+        'codigoQR': productData['codigoQR'],
+        'nombreProducto': productData['nombreProducto'] ?? widget.productName,
+        'activo_nombre': widget.productName,
+        'activoNombre': widget.productName,
+        'disciplina': productData['disciplina'],
+        'categoria': productData['categoria'] ?? widget.productCategory,
         'fechaInspeccion': fechaInspeccion,
         'estadoDetectado': _estadoDetectadoCtrl.text.trim(),
         'riesgoElectrico': _riesgoElectricoCtrl.text.trim(),
@@ -194,11 +198,14 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
         'reposicion': _reposicion,
         'fechaDisplay': DateFormat('dd/MM/yyyy').format(_fechaInspeccion),
         'ubicacion': widget.productLocation,
-      });
+        'createdAt': FieldValue.serverTimestamp(),
+      };
 
-      final productRef = productsRef.doc(widget.productId);
-      final productSnap = await productRef.get();
-      final productData = productSnap.data() ?? {};
+      await reportRef.set(reportData);
+      await FirebaseFirestore.instance
+          .collection('reportes')
+          .doc(reportRef.id)
+          .set(reportData);
       final frecuencia = _parseFrecuenciaMeses(productData['frecuenciaMantenimientoMeses']);
       final fechaProximo =
           frecuencia != null ? _addMonthsDouble(_fechaInspeccion, frecuencia) : null;
