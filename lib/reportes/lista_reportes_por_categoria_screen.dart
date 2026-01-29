@@ -34,7 +34,7 @@ class ListaReportesPorCategoriaScreen extends StatelessWidget {
               toFirestore: (data, _) => data,
             )
             .where('categoria', isEqualTo: categoriaFilter) // Filtra reportes por categoría
-            .orderBy('fecha', descending: true)
+            .orderBy('fechaInspeccion', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -106,12 +106,13 @@ class _ReporteListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String estado = reporte['estado_nuevo'] ?? 'Pendiente';
+    final String estado =
+        reporte['estadoNuevo'] ?? reporte['estado_nuevo'] ?? reporte['estadoDetectado'] ?? 'Pendiente';
     final bool isOk = estado.toLowerCase() == 'operativo' || estado.toLowerCase() == 'completado';
     final Color statusColor = isOk ? Colors.green : Colors.red;
     
     // Fecha
-    final Timestamp? ts = reporte['fecha'];
+    final Timestamp? ts = reporte['fechaInspeccion'] ?? reporte['fecha'];
     final String fecha = ts != null ? DateFormat('dd/MM/yyyy').format(ts.toDate()) : '--';
 
     return Card(
@@ -138,7 +139,10 @@ class _ReporteListCard extends StatelessWidget {
             child: Icon(isOk ? Icons.check : Icons.warning, color: statusColor),
           ),
           title: Text(
-            reporte['activo_nombre'] ?? 'Producto desconocido', 
+            reporte['nombreProducto'] ??
+                reporte['activo_nombre'] ??
+                reporte['activoNombre'] ??
+                'Producto desconocido', 
             style: const TextStyle(fontWeight: FontWeight.bold),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
