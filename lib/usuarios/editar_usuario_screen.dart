@@ -168,9 +168,7 @@ Future<String?> _uploadFileToSupabase(File file, String folder) async {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text("Editar Perfil", style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text("Editar Perfil"),
         actions: [
            if (canEditThisProfile) // Solo mostrar si tiene permiso de editar ESTE perfil
              if (_isSaving)

@@ -72,9 +72,7 @@ class DetalleReporteScreen extends StatelessWidget {
         return Scaffold(
           backgroundColor: const Color(0xFFF0F2F5),
           appBar: AppBar(
-            title: const Text("Detalle del Reporte", style: TextStyle(color: Colors.white)),
-            backgroundColor: const Color(0xFF2C3E50),
-            iconTheme: const IconThemeData(color: Colors.white),
+            title: const Text("Detalle del Reporte"),
           ),
           
           floatingActionButton: FloatingActionButton.extended(
@@ -97,7 +95,6 @@ class DetalleReporteScreen extends StatelessWidget {
             },
             label: const Text("Exportar PDF", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
-            backgroundColor: const Color(0xFFE74C3C), 
           ),
 
           body: SingleChildScrollView(

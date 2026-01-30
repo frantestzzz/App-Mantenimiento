@@ -3,6 +3,7 @@ import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
 
 import '../services/excel_export_service.dart';
+import '../scan/qr_scanner_screen.dart';
 import 'parametros_templates.dart';
 
 class ParametrosViewerScreen extends StatefulWidget {
@@ -33,10 +34,7 @@ class _ParametrosViewerScreenState extends State<ParametrosViewerScreen> {
       appBar: AppBar(
         title: Text(
           '${widget.disciplinaLabel.toUpperCase()} - ${widget.tipo.toUpperCase()}',
-          style: const TextStyle(color: Colors.white),
         ),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: widget.tipo == 'reportes'
           ? _ReportesViewer(
@@ -159,7 +157,7 @@ class _ReportesViewer extends StatelessWidget {
                     .map(
                       (doc) => DropdownMenuItem(
                         value: doc.id,
-                        child: Text(doc.data()['nombre']?.toString() ?? doc.id),
+                        child: Text(doc.data()['nombreProducto']?.toString() ?? doc.data()['nombre']?.toString() ?? doc.id),
                       ),
                     )
                     .toList(),
@@ -185,7 +183,14 @@ class _ReportesViewer extends StatelessWidget {
                     return const Center(child: Text('No hay reportes disponibles.'));
                   }
 
-                  final rows = reportSnapshot.data!.docs
+                  final sortedDocs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(reportSnapshot.data!.docs)
+                    ..sort((a, b) {
+                      final dateA = _resolveReportDate(a.data());
+                      final dateB = _resolveReportDate(b.data());
+                      return dateB.compareTo(dateA);
+                    });
+
+                  final rows = sortedDocs
                       .map(
                         (doc) => DatasetRow.fromReporteDocument(
                           doc,
@@ -193,14 +198,63 @@ class _ReportesViewer extends StatelessWidget {
                           columns,
                         ),
                       )
-                      .toList()
-                    ..sort(DatasetRow.sortByNombre);
+                      .toList();
 
                   return _ViewerContent(
                     columns: columns,
                     rows: rows,
                     disciplinaLabel: disciplinaLabel,
                     tipo: 'reportes',
+                    footerBuilder: (context, onGenerateExcel) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => QRScannerScreen(
+                                        onProductFound: (productId) {
+                                          final matchesDisciplina = products.any((doc) => doc.id == productId);
+                                          if (!matchesDisciplina) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('El activo escaneado no pertenece a esta disciplina.'),
+                                              ),
+                                            );
+                                            return;
+                                          }
+                                          onProductSelected(productId);
+                                        },
+                                      ),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.qr_code_scanner),
+                                label: const Text('Escanear Activo'),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: onGenerateExcel,
+                                icon: const Icon(Icons.download),
+                                label: const Text('Generar Excel'),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   );
                 },
               ),
@@ -217,12 +271,14 @@ class _ViewerContent extends StatelessWidget {
   final List<DatasetRow> rows;
   final String disciplinaLabel;
   final String tipo;
+  final Widget Function(BuildContext, Future<void> Function())? footerBuilder;
 
   const _ViewerContent({
     required this.columns,
     required this.rows,
     required this.disciplinaLabel,
     required this.tipo,
+    this.footerBuilder,
   });
 
   @override
@@ -248,21 +304,21 @@ class _ViewerContent extends StatelessWidget {
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _generateExcel(context),
-              icon: const Icon(Icons.download),
-              label: const Text('Generar Excel'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                backgroundColor: const Color(0xFF1ABC9C),
+        footerBuilder?.call(context, () => _generateExcel(context)) ??
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _generateExcel(context),
+                  icon: const Icon(Icons.download),
+                  label: const Text('Generar Excel'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
       ],
     );
   }
@@ -323,6 +379,20 @@ class _ViewerContent extends StatelessWidget {
     }
     return value.toString();
   }
+}
+
+DateTime _resolveReportDate(Map<String, dynamic> data) {
+  final dynamic rawDate = data['fechaInspeccion'] ?? data['fecha'];
+  if (rawDate is Timestamp) {
+    return rawDate.toDate();
+  }
+  if (rawDate is DateTime) {
+    return rawDate;
+  }
+  if (rawDate is String) {
+    return DateTime.tryParse(rawDate) ?? DateTime.fromMillisecondsSinceEpoch(0);
+  }
+  return DateTime.fromMillisecondsSinceEpoch(0);
 }
 
 class DatasetColumn {

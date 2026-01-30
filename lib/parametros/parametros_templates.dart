@@ -127,6 +127,38 @@ const Map<String, Map<String, List<String>>> parametrosHeaders = {
       'Responsable',
     ],
   },
+  'mecanica': {
+    'base': [
+      'ID_Activo',
+      'Disciplina',
+      'Categoria_Activo',
+      'Tipo_Activo',
+      'Bloque',
+      'Nivel',
+      'Espacio',
+      'Estado_Operativo',
+      'Condicion_Fisica',
+      'Fecha_Ultima_Inspeccion',
+      'Nivel_Criticidad',
+      'Impacto_Falla',
+      'Riesgo_Normativo',
+      'Frecuencia_Mantenimiento_Meses',
+      'Fecha_Proximo_Mantenimiento',
+      'Costo_Mantenimiento',
+      'Costo_Reemplazo',
+      'Observaciones',
+    ],
+    'reportes': [
+      'ID_Reporte',
+      'ID_Activo',
+      'Disciplina',
+      'Fecha_Inspeccion',
+      'Estado_Detectado',
+      'Accion_Recomendada',
+      'Costo_Estimado',
+      'Responsable',
+    ],
+  },
 };
 
 List<String> headersFor(String disciplinaKey, String tipo) {
@@ -150,7 +182,7 @@ dynamic valueForHeader(
     case 'Categoria_Activo':
       return productData['categoria'] ?? '';
     case 'Tipo_Activo':
-      return productData['tipoActivo'] ?? productData['subcategoria'] ?? '';
+      return productData['nombreProducto'] ?? productData['nombre'] ?? '';
     case 'Bloque':
       return ubicacion['bloque'] ?? productData['bloque'] ?? '';
     case 'Nivel':

@@ -12,9 +12,7 @@ class ListaUsuariosScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text("Personal", style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text("Personal"),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
@@ -61,7 +59,6 @@ class ListaUsuariosScreen extends StatelessWidget {
         onPressed: () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const NuevoUsuarioScreen()));
         },
-        backgroundColor: const Color(0xFF3498DB),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );

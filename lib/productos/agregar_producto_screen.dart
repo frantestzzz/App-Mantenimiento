@@ -32,9 +32,7 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
   final _bloqueCtrl = TextEditingController();
   final _nivelCtrl = TextEditingController();
   final _areaCtrl = TextEditingController();
-  final _tipoActivoCtrl = TextEditingController();
   final _idActivoCtrl = TextEditingController();
-  String _idActivoPreview = '';
   final _frecuenciaMantenimientoCtrl = TextEditingController();
   final _costoReemplazoCtrl = TextEditingController();
   final _vidaUtilEsperadaCtrl = TextEditingController();
@@ -64,7 +62,6 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
     _bloqueCtrl.dispose();
     _nivelCtrl.dispose();
     _areaCtrl.dispose();
-    _tipoActivoCtrl.dispose();
     _idActivoCtrl.dispose();
     _frecuenciaMantenimientoCtrl.dispose();
     _costoReemplazoCtrl.dispose();
@@ -153,7 +150,6 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
         'fechaCreacion': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'nivel': nivelValue,
-        'tipoActivo': _tipoActivoCtrl.text.trim(),
         'idActivo': idActivo,
         'bloque': _bloqueCtrl.text.trim(),
         'espacio': _areaCtrl.text.trim(),
@@ -202,7 +198,6 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
       nivel: _nivelCtrl.text.trim(),
     );
     setState(() {
-      _idActivoPreview = preview;
       _idActivoCtrl.text = preview;
     });
   }
@@ -210,7 +205,7 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Agregar Producto"), backgroundColor: const Color(0xFF2C3E50), iconTheme: const IconThemeData(color: Colors.white), titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20)),
+      appBar: AppBar(title: const Text("Agregar Producto"), titleTextStyle: const TextStyle(fontSize: 20)),
       body: _isUploading 
         ? const Center(child: CircularProgressIndicator()) 
         : Form(
@@ -248,7 +243,7 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
               _buildDropdown(
                 "Disciplina",
                 _disciplina,
-                ['Electricas', 'Sanitarias', 'Estructuras', 'Arquitectura'],
+                ['Electricas', 'Sanitarias', 'Estructuras', 'Arquitectura', 'Mecanica'],
                 (v) {
                   _disciplina = v!;
                   _updateIdActivoPreview();
@@ -289,28 +284,11 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
               TextFormField(
                 controller: _idActivoCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'ID Activo',
-                  helperText: 'Se autogenera al guardar. Previsualización abajo.',
+                  labelText: 'ID Activo (autogenerado)',
                 ),
                 readOnly: true,
                 enabled: false,
               ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    const Icon(Icons.visibility, size: 18, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'ID Activo (previsualización): $_idActivoPreview',
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _buildTextField(_tipoActivoCtrl, "Tipo de Activo"),
               _buildTextField(_frecuenciaMantenimientoCtrl, "Frecuencia Mantenimiento (meses)", keyboardType: TextInputType.number),
               _buildTextField(_costoReemplazoCtrl, "Costo Reemplazo", keyboardType: TextInputType.number),
               _buildTextField(_vidaUtilEsperadaCtrl, "Vida Útil Esperada (Años)", keyboardType: TextInputType.number),
@@ -348,7 +326,7 @@ class _AgregarProductoScreenState extends State<AgregarProductoScreen> {
               const SizedBox(height: 30),
               ElevatedButton(
                 onPressed: _guardarProducto,
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3498DB), padding: const EdgeInsets.symmetric(vertical: 15)),
+                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 15)),
                 child: const Text("GUARDAR PRODUCTO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 40),

@@ -63,9 +63,7 @@ class _NuevoUsuarioScreenState extends State<NuevoUsuarioScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text("Agregar Nuevo Usuario", style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text("Agregar Nuevo Usuario"),
       ),
       body: Form(
         key: _formKey,
@@ -108,7 +106,6 @@ class _NuevoUsuarioScreenState extends State<NuevoUsuarioScreen> {
                   ElevatedButton(
                     onPressed: _guardarUsuario,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D6EFD),
                       foregroundColor: Colors.white,
                     ),
                     child: const Text("Guardar"),

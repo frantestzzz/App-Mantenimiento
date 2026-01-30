@@ -29,7 +29,6 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
   
   // --- 1. CONTROLADORES PARA TODOS LOS CAMPOS DE TEXTO ---
   // Usamos controladores en lugar de variables String para asegurar la captura del texto
-  final TextEditingController _tipoReporteCtrl = TextEditingController();
   final TextEditingController _descripcionCtrl = TextEditingController();
   final TextEditingController _comentariosCtrl = TextEditingController();
   final TextEditingController _encargadoCtrl = TextEditingController(); // Ya existía
@@ -40,9 +39,9 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
   
   // Variables para Dropdowns/Selectores (estos sí se quedan como variables)
   String _nuevoEstado = 'OPERATIVO';
-  String _reposicion = 'NO';
   String _condicionFisica = 'buena';
-  String _tipoMantenimiento = 'preventivo';
+  String? _tipoReporte;
+  String? _tipoMantenimiento;
   String _nivelCriticidad = 'medio';
   String _impactoFalla = 'operacion';
   String _riesgoNormativo = 'cumple';
@@ -61,7 +60,6 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
   @override
   void dispose() {
     // Limpiamos los controladores al salir para liberar memoria
-    _tipoReporteCtrl.dispose();
     _descripcionCtrl.dispose();
     _comentariosCtrl.dispose();
     _encargadoCtrl.dispose();
@@ -121,6 +119,17 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
     setState(() {
       _isSaving = true;
     });
+    if (_tipoReporte == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Seleccione el tipo de reporte.')),
+        );
+        setState(() {
+          _isSaving = false;
+        });
+      }
+      return;
+    }
     
     try {
       final int nextReportNumber = await _getAndIncrementReportCounter();
@@ -161,21 +170,20 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
         'responsableNombre': responsableNombre,
         'responsableUid': responsableUid,
         'encargado': responsableNombre,
-        'tipoReporte': _tipoReporteCtrl.text.trim(),
+        'tipoReporte': _tipoReporte,
         'descripcion': _descripcionCtrl.text.trim(),
         'comentarios': _comentariosCtrl.text.trim(),
         'estadoAnterior': widget.initialStatus.toLowerCase(),
         'estadoNuevo': _nuevoEstado.toLowerCase(),
         'estadoOperativo': _nuevoEstado.toLowerCase(),
-        'reposicion': _reposicion,
         'fechaDisplay': DateFormat('dd/MM/yyyy').format(_fechaInspeccion),
         'ubicacion': widget.productLocation,
         'condicionFisica': _condicionFisica,
-        'tipoMantenimiento': _tipoMantenimiento,
+        'tipoMantenimiento': _showTipoMantenimiento ? _tipoMantenimiento : null,
         'nivelCriticidad': _nivelCriticidad,
         'impactoFalla': _impactoFalla,
         'riesgoNormativo': _riesgoNormativo,
-        'requiereReemplazo': _requiereReemplazo,
+        'requiereReemplazo': _showRequiereReemplazo ? _requiereReemplazo : false,
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -192,11 +200,11 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
         'estado': _nuevoEstado.toLowerCase(),
         'estadoOperativo': _nuevoEstado.toLowerCase(),
         'condicionFisica': _condicionFisica,
-        'tipoMantenimiento': _tipoMantenimiento,
+        'tipoMantenimiento': _showTipoMantenimiento ? _tipoMantenimiento : null,
         'nivelCriticidad': _nivelCriticidad,
         'impactoFalla': _impactoFalla,
         'riesgoNormativo': _riesgoNormativo,
-        'requiereReemplazo': _requiereReemplazo,
+        'requiereReemplazo': _showRequiereReemplazo ? _requiereReemplazo : false,
         'fechaUltimaInspeccion': fechaInspeccion,
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -234,9 +242,7 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Generar Reporte", style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text("Generar Reporte"),
       ),
       body: Form(
         key: _formKey,
@@ -251,11 +257,7 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
             ),
             
             // Usamos el nuevo helper que acepta controller
-            _buildTextField(
-              controller: _tipoReporteCtrl, // Asignamos controlador
-              label: "Tipo de Reporte*",
-              hint: "EJ: Mantenimiento Correctivo",
-            ),
+            _buildTipoReporteDropdown(),
             
             _buildReadOnlyField("Activo*", "${widget.productName}\n${widget.productCategory}"),
             _buildReadOnlyField(
@@ -315,17 +317,10 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
             ),
             
             _buildSegmentedControl(
-              label: "Estado*",
+              label: "Estado operativo del activo*",
               options: const ['OPERATIVO', 'DEFECTUOSO', 'FUERA_SERVICIO'],
               value: _nuevoEstado,
               onChanged: (newValue) => setState(() => _nuevoEstado = newValue),
-            ),
-            
-            _buildSegmentedControl(
-              label: "Reposición",
-              options: const ['NO', 'SI'],
-              value: _reposicion,
-              onChanged: (newValue) => setState(() => _reposicion = newValue),
             ),
 
             _buildDropdownField(
@@ -334,12 +329,13 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
               items: const ['buena', 'regular', 'mala'],
               onChanged: (value) => setState(() => _condicionFisica = value ?? _condicionFisica),
             ),
-            _buildDropdownField(
-              label: "Tipo de Mantenimiento",
-              value: _tipoMantenimiento,
-              items: const ['preventivo', 'correctivo'],
-              onChanged: (value) => setState(() => _tipoMantenimiento = value ?? _tipoMantenimiento),
-            ),
+            if (_showTipoMantenimiento)
+              _buildSegmentedControl(
+                label: "Tipo de mantenimiento*",
+                options: const ['preventivo', 'correctivo', 'situacional'],
+                value: _tipoMantenimiento ?? 'preventivo',
+                onChanged: (newValue) => setState(() => _tipoMantenimiento = newValue),
+              ),
             _buildDropdownField(
               label: "Nivel de Criticidad",
               value: _nivelCriticidad,
@@ -358,12 +354,13 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
               items: const ['cumple', 'no_cumple', 'evaluar'],
               onChanged: (value) => setState(() => _riesgoNormativo = value ?? _riesgoNormativo),
             ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text("Requiere Reemplazo"),
-              value: _requiereReemplazo,
-              onChanged: _isSaving ? null : (value) => setState(() => _requiereReemplazo = value),
-            ),
+            if (_showRequiereReemplazo)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text("Requiere Reemplazo"),
+                value: _requiereReemplazo,
+                onChanged: _isSaving ? null : (value) => setState(() => _requiereReemplazo = value),
+              ),
 
             _buildTextField(
               controller: _comentariosCtrl, // Asignamos controlador
@@ -387,10 +384,9 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
                 ElevatedButton(
                   onPressed: _isSaving ? null : _saveReport,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3498DB),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    disabledBackgroundColor: const Color(0xFF3498DB).withOpacity(0.6),
+                    disabledBackgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.6),
                   ),
                   child: _isSaving 
                     ? const SizedBox(
@@ -462,6 +458,47 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
             child: Text(value, style: const TextStyle(color: Colors.black)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTipoReporteDropdown() {
+    const options = [
+      {'value': 'mantenimiento', 'label': 'Mantenimiento'},
+      {'value': 'inspeccion', 'label': 'Inspección'},
+      {'value': 'incidente_falla', 'label': 'Incidente/Falla'},
+      {'value': 'auditoria', 'label': 'Auditoría'},
+      {'value': 'reemplazo', 'label': 'Reemplazo'},
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: DropdownButtonFormField<String>(
+        value: _tipoReporte,
+        decoration: const InputDecoration(
+          labelText: "Tipo de Reporte*",
+          border: OutlineInputBorder(),
+        ),
+        items: options
+            .map((item) => DropdownMenuItem(value: item['value'], child: Text(item['label'] ?? '')))
+            .toList(),
+        onChanged: _isSaving
+            ? null
+            : (value) {
+                setState(() {
+                  _tipoReporte = value;
+                  if (_showTipoMantenimiento && _tipoMantenimiento == null) {
+                    _tipoMantenimiento = 'preventivo';
+                  }
+                  if (!_showRequiereReemplazo) {
+                    _requiereReemplazo = false;
+                  }
+                  if (!_showTipoMantenimiento) {
+                    _tipoMantenimiento = null;
+                  }
+                });
+              },
+        validator: (value) => value == null || value.isEmpty ? 'Campo requerido' : null,
       ),
     );
   }
@@ -538,7 +575,7 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF3498DB) : Colors.white,
+                        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.white,
                         borderRadius: BorderRadius.horizontal(
                           left: Radius.circular(option == options.first ? 8 : 0),
                           right: Radius.circular(option == options.last ? 8 : 0),
@@ -578,4 +615,11 @@ class _GenerarReporteScreenState extends State<GenerarReporteScreen> {
         .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
   }
+
+  bool get _showTipoMantenimiento => _tipoReporte == 'mantenimiento';
+
+  bool get _showRequiereReemplazo =>
+      _tipoReporte == 'mantenimiento' ||
+      _tipoReporte == 'inspeccion' ||
+      _tipoReporte == 'incidente_falla';
 }

@@ -22,9 +22,7 @@ class ListaReportesPorCategoriaScreen extends StatelessWidget {
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
         title: Text("Reportes: $categoriaTitle"),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+        titleTextStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
@@ -116,7 +114,6 @@ class ListaReportesPorCategoriaScreen extends StatelessWidget {
             ),
           );
         },
-        backgroundColor: const Color(0xFF3498DB),
         child: const Icon(Icons.add, color: Colors.white),
         tooltip: 'Crear Nuevo Reporte',
       ),

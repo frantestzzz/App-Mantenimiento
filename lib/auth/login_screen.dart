@@ -36,7 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2C3E50),
+      backgroundColor: Theme.of(context).colorScheme.primary,
       body: Center(
         child: Card(
           margin: const EdgeInsets.all(20),
@@ -47,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.lock_outline, size: 60, color: Color(0xFF3498DB)),
+                Icon(Icons.lock_outline, size: 60, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(height: 20),
                 const Text(
                   "Bienvenido",
@@ -80,10 +80,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3498DB),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: _isLoading 
+                    child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white) 
                       : const Text("INICIAR SESIÓN", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                   ),

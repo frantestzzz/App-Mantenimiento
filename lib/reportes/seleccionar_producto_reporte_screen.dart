@@ -27,9 +27,7 @@ class _SeleccionarProductoReporteScreenState extends State<SeleccionarProductoRe
     return Scaffold(
       appBar: AppBar(
         title: const Text("Seleccionar Producto"),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 18),
+        titleTextStyle: const TextStyle(fontSize: 18),
       ),
       body: Column(
         children: [
@@ -133,7 +131,6 @@ class _SeleccionarProductoReporteScreenState extends State<SeleccionarProductoRe
         },
         label: const Text('Escanear QR'),
         icon: const Icon(Icons.qr_code_scanner),
-        backgroundColor: const Color(0xFF3498DB),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );

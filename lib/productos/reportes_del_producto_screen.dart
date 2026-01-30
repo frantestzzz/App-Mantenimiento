@@ -26,9 +26,7 @@ class ReportesDelProductoScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Reportes - $nombreProducto', style: const TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text('Reportes - $nombreProducto'),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: productRef.orderBy('fechaInspeccion', descending: true).snapshots(),
