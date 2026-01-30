@@ -7,8 +7,9 @@ import 'package:appmantflutter/reportes/generar_reporte_screen.dart';
 
 class QRScannerScreen extends StatefulWidget {
   final bool goToReport;
+  final ValueChanged<String>? onProductFound;
 
-  const QRScannerScreen({super.key, this.goToReport = false});
+  const QRScannerScreen({super.key, this.goToReport = false, this.onProductFound});
 
   @override
   State<QRScannerScreen> createState() => _QRScannerScreenState();
@@ -63,6 +64,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         final data = doc.data();
 
         if (mounted) {
+          if (widget.onProductFound != null) {
+            widget.onProductFound!(productId);
+            Navigator.pop(context);
+            return;
+          }
           if (widget.goToReport) {
             final nombre = data['nombre'] ?? 'Sin nombre';
             final categoria = data['categoria'] ?? 'N/A';
@@ -115,9 +121,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Escanear Equipo'),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20),
+        titleTextStyle: const TextStyle(fontSize: 20),
         actions: [
           // Botón para el Flash (Corregido para la API moderna)
           IconButton(
@@ -172,7 +176,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     return Container(
       decoration: ShapeDecoration(
         shape: QrScannerOverlayShape(
-          borderColor: const Color(0xFF3498DB),
+          borderColor: Theme.of(context).colorScheme.primary,
           borderRadius: 10,
           borderLength: 30,
           borderWidth: 10,

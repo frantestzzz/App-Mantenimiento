@@ -23,6 +23,7 @@ class _ParametrosScreenState extends State<ParametrosScreen> {
     (key: 'arquitectura', label: 'Arquitectura', disciplinaValue: 'Arquitectura', enabled: true),
     (key: 'sanitarias', label: 'Sanitarias', disciplinaValue: 'Sanitarias', enabled: true),
     (key: 'estructuras', label: 'Estructuras', disciplinaValue: 'Estructuras', enabled: true),
+    (key: 'mecanica', label: 'Mecánica', disciplinaValue: 'Mecanica', enabled: true),
   ];
 
   final _schemaService = ParametrosSchemaService();
@@ -37,9 +38,7 @@ class _ParametrosScreenState extends State<ParametrosScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Parámetros", style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text("Parámetros"),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -101,20 +100,17 @@ class _ParametrosDisciplinaCard extends StatelessWidget {
                     icon: const Icon(Icons.table_view),
                     label: const Text('Ver Base'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3498DB),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: ElevatedButton.icon(
                     onPressed: () => onOpenViewer('reportes'),
                     icon: const Icon(Icons.description_outlined),
                     label: const Text('Ver Reportes'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
+                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
                   ),
                 ),
               ],

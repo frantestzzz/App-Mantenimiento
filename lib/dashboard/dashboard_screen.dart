@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:appmantflutter/productos/detalle_producto_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -15,9 +16,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   
   // Datos para Gráficos
   int _totalOperativos = 0;
-  int _totalFalla = 0;
+  int _totalDefectuosos = 0;
+  int _totalFueraServicio = 0;
   List<int> _reportesPorDia = List.filled(7, 0); // Lun-Dom
-  Map<String, int> _topFallas = {};
+  List<String> _labelsDias = List.filled(7, '');
+  List<_TopEquipo> _topEquipos = [];
 
   @override
   void initState() {
@@ -32,54 +35,90 @@ class _DashboardScreenState extends State<DashboardScreen> {
             fromFirestore: (snapshot, _) => snapshot.data() ?? {},
             toFirestore: (data, _) => data,
           );
-      final reportesRef = db.collection('reportes').withConverter<Map<String, dynamic>>(
-            fromFirestore: (snapshot, _) => snapshot.data() ?? {},
-            toFirestore: (data, _) => data,
-          );
+      final reportesRef = db.collectionGroup('reportes').withConverter<Map<String, dynamic>>(
+        fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+        toFirestore: (data, _) => data,
+      );
 
       // 1. CARGAR ESTADO DE EQUIPOS
-      final operativosSnapshot = await productosRef.where('estado', isEqualTo: 'operativo').count().get();
-      final fallasSnapshot = await productosRef.where('estado', isEqualTo: 'fuera de servicio').count().get();
+      final operativosSnapshot = await productosRef.where('estadoOperativo', isEqualTo: 'operativo').count().get();
+      final defectuososSnapshot = await productosRef.where('estadoOperativo', isEqualTo: 'defectuoso').count().get();
+      final fueraServicioSnapshot = await productosRef.where('estadoOperativo', isEqualTo: 'fuera_servicio').count().get();
 
       _totalOperativos = operativosSnapshot.count ?? 0;
-      _totalFalla = fallasSnapshot.count ?? 0;
+      _totalDefectuosos = defectuososSnapshot.count ?? 0;
+      _totalFueraServicio = fueraServicioSnapshot.count ?? 0;
 
       // 2. CARGAR REPORTES DE LA ÚLTIMA SEMANA
       final hoy = DateTime.now();
-      final hace7dias = hoy.subtract(const Duration(days: 7));
-      
-      final reportesSnapshot = await reportesRef
-          .where('fecha', isGreaterThanOrEqualTo: hace7dias)
-          .get();
+      final inicio = DateTime(hoy.year, hoy.month, hoy.day).subtract(const Duration(days: 6));
+      final labelsDias = List.generate(
+        7,
+        (index) => DateFormat('E').format(inicio.add(Duration(days: index))).substring(0, 1).toUpperCase(),
+      );
 
-      List<int> tempReportesPorDia = List.filled(7, 0);
-      Map<String, int> tempFallas = {};
+      final snapshots = await Future.wait([
+        reportesRef.where('fechaInspeccion', isGreaterThanOrEqualTo: inicio).get(),
+        reportesRef.where('fecha', isGreaterThanOrEqualTo: inicio).get(),
+      ]);
 
-      for (var doc in reportesSnapshot.docs) {
+      final uniqueDocs = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+      for (final snapshot in snapshots) {
+        for (final doc in snapshot.docs) {
+          uniqueDocs[doc.reference.path] = doc;
+        }
+      }
+
+      final tempReportesPorDia = List<int>.filled(7, 0);
+      final conteoPorEquipo = <String, int>{};
+
+      for (final doc in uniqueDocs.values) {
         final data = doc.data();
-        final Timestamp? ts = data['fecha'];
-        final String nombreEquipo = data['activo_nombre'] ?? 'Desconocido';
-
-        if (ts != null) {
-          final fecha = ts.toDate();
-          int diaIndex = fecha.weekday - 1; 
-          if (diaIndex >= 0 && diaIndex < 7) {
-             tempReportesPorDia[diaIndex]++;
-          }
+        final rawDate = data['fechaInspeccion'] ?? data['fecha'];
+        final date = _resolveReportDate(rawDate);
+        if (date == null) {
+          continue;
+        }
+        final difference = date.difference(inicio).inDays;
+        if (difference >= 0 && difference < 7) {
+          tempReportesPorDia[difference]++;
         }
 
-        // Contar para Top Fallas
-        if (tempFallas.containsKey(nombreEquipo)) {
-          tempFallas[nombreEquipo] = tempFallas[nombreEquipo]! + 1;
-        } else {
-          tempFallas[nombreEquipo] = 1;
+        final productId = data['productId'] ?? doc.reference.parent.parent?.id;
+        if (productId == null) {
+          continue;
+        }
+        conteoPorEquipo[productId] = (conteoPorEquipo[productId] ?? 0) + 1;
+      }
+
+      final top5Ids = conteoPorEquipo.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      final topIds = top5Ids.take(5).map((entry) => entry.key).toList();
+      final topEquipos = <_TopEquipo>[];
+      if (topIds.isNotEmpty) {
+        final docs = await Future.wait(
+          topIds.map((id) => productosRef.doc(id).get()),
+        );
+        for (var i = 0; i < docs.length; i++) {
+          final doc = docs[i];
+          if (!doc.exists) continue;
+          final data = doc.data() ?? {};
+          topEquipos.add(
+            _TopEquipo(
+              productId: doc.id,
+              nombre: (data['nombreProducto'] ?? data['nombre'] ?? 'Activo').toString(),
+              imagenUrl: data['imagenUrl']?.toString(),
+              totalReportes: conteoPorEquipo[doc.id] ?? 0,
+            ),
+          );
         }
       }
 
       if (mounted) {
         setState(() {
           _reportesPorDia = tempReportesPorDia;
-          _topFallas = tempFallas;
+          _labelsDias = labelsDias;
+          _topEquipos = topEquipos;
           _isLoading = false;
         });
       }
@@ -92,20 +131,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // --- CORRECCIÓN AQUÍ: Preparamos la lista ordenada antes de usarla ---
-    final topFallasList = _topFallas.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value)); // Ordenamos de mayor a menor
-    
-    // Tomamos solo los 5 primeros
-    final top5Fallas = topFallasList.take(5).toList();
+    final totalInventario = _totalOperativos + _totalDefectuosos + _totalFueraServicio;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
         title: const Text("Dashboard Gerencial"),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+        titleTextStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         actions: [
           IconButton(onPressed: _cargarDatos, icon: const Icon(Icons.refresh, color: Colors.white))
         ],
@@ -122,7 +154,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 20),
                   SizedBox(
                     height: 200,
-                    child: _totalOperativos == 0 && _totalFalla == 0 
+                    child: totalInventario == 0 
                       ? const Center(child: Text("No hay datos de productos"))
                       : PieChart(
                         PieChartData(
@@ -137,9 +169,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
                             ),
                             PieChartSectionData(
+                              color: const Color(0xFFF39C12),
+                              value: _totalDefectuosos.toDouble(),
+                              title: '$_totalDefectuosos\nDef',
+                              radius: 60,
+                              titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                            PieChartSectionData(
                               color: const Color(0xFFE74C3C),
-                              value: _totalFalla.toDouble(),
-                              title: '$_totalFalla\nMal',
+                              value: _totalFueraServicio.toDouble(),
+                              title: '$_totalFueraServicio\nFS',
                               radius: 60,
                               titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
                             ),
@@ -153,6 +192,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       _LegendItem(color: Color(0xFF2ECC71), text: "Operativo"),
                       SizedBox(width: 20),
+                      _LegendItem(color: Color(0xFFF39C12), text: "Defectuoso"),
+                      SizedBox(width: 20),
                       _LegendItem(color: Color(0xFFE74C3C), text: "Fuera de Servicio"),
                     ],
                   ),
@@ -164,51 +205,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 20),
                   SizedBox(
                     height: 250,
-                    child: BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        maxY: (_reportesPorDia.reduce((curr, next) => curr > next ? curr : next) + 2).toDouble(),
-                        barTouchData: BarTouchData(enabled: true),
-                        titlesData: FlTitlesData(
-                          show: true,
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (double value, TitleMeta meta) {
-                                const style = TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12);
-                                switch (value.toInt()) {
-                                  case 0: return const Text('L', style: style);
-                                  case 1: return const Text('M', style: style);
-                                  case 2: return const Text('M', style: style);
-                                  case 3: return const Text('J', style: style);
-                                  case 4: return const Text('V', style: style);
-                                  case 5: return const Text('S', style: style);
-                                  case 6: return const Text('D', style: style);
-                                  default: return const Text('', style: style);
-                                }
-                              },
+                    child: _reportesPorDia.every((value) => value == 0)
+                        ? const Center(child: Text("No hay reportes recientes."))
+                        : BarChart(
+                            BarChartData(
+                              alignment: BarChartAlignment.spaceAround,
+                              maxY: (_reportesPorDia.reduce((curr, next) => curr > next ? curr : next) + 2).toDouble(),
+                              barTouchData: BarTouchData(enabled: true),
+                              titlesData: FlTitlesData(
+                                show: true,
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    getTitlesWidget: (double value, TitleMeta meta) {
+                                      const style = TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12);
+                                      final index = value.toInt();
+                                      if (index < 0 || index >= _labelsDias.length) {
+                                        return const Text('', style: style);
+                                      }
+                                      return Text(_labelsDias[index], style: style);
+                                    },
+                                  ),
+                                ),
+                                leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              ),
+                              borderData: FlBorderData(show: false),
+                              barGroups: _reportesPorDia.asMap().entries.map((entry) {
+                                return BarChartGroupData(
+                                  x: entry.key,
+                                  barRods: [
+                                    BarChartRodData(
+                                      toY: entry.value.toDouble(),
+                                      color: const Color(0xFF8B1E1E),
+                                      width: 16,
+                                      borderRadius: BorderRadius.circular(4),
+                                    )
+                                  ],
+                                );
+                              }).toList(),
                             ),
                           ),
-                          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        ),
-                        borderData: FlBorderData(show: false),
-                        barGroups: _reportesPorDia.asMap().entries.map((entry) {
-                          return BarChartGroupData(
-                            x: entry.key,
-                            barRods: [
-                              BarChartRodData(
-                                toY: entry.value.toDouble(),
-                                color: const Color(0xFF3498DB),
-                                width: 16,
-                                borderRadius: BorderRadius.circular(4),
-                              )
-                            ],
-                          );
-                        }).toList(),
-                      ),
-                    ),
                   ),
 
                   const Divider(height: 40),
@@ -216,21 +254,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // --- TOP FALLAS (CORREGIDO) ---
                   const Text("Top Equipos con Reportes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50))),
                   const SizedBox(height: 10),
-                  
-                  // Usamos la lista ya preparada 'top5Fallas'
-                  ...top5Fallas.map((entry) {
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: const CircleAvatar(backgroundColor: Color(0xFFFAD7A0), child: Icon(Icons.warning_amber, color: Color(0xFFE67E22))),
-                          title: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          trailing: Text("${entry.value} reportes", style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                      );
-                  }),
-                    
-                  if (top5Fallas.isEmpty)
-                    const Padding(padding: EdgeInsets.all(10), child: Text("No hay reportes recientes.")),
+
+                  if (_topEquipos.isEmpty)
+                    const Padding(padding: EdgeInsets.all(10), child: Text("No hay reportes recientes."))
+                  else
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: _topEquipos.map((equipo) {
+                        return InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => DetalleProductoScreen(productId: equipo.productId),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            width: 160,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: equipo.imagenUrl != null && equipo.imagenUrl!.isNotEmpty
+                                      ? Image.network(
+                                          equipo.imagenUrl!,
+                                          height: 80,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Container(
+                                          height: 80,
+                                          color: Colors.grey.shade200,
+                                          child: const Center(
+                                            child: Icon(Icons.image_not_supported, color: Colors.grey),
+                                          ),
+                                        ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  equipo.nombre,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 4),
+                                Text('${equipo.totalReportes} reportes', style: const TextStyle(color: Colors.grey)),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                     
                   const SizedBox(height: 50),
                 ],
@@ -255,4 +345,31 @@ class _LegendItem extends StatelessWidget {
       ],
     );
   }
+}
+
+class _TopEquipo {
+  final String productId;
+  final String nombre;
+  final String? imagenUrl;
+  final int totalReportes;
+
+  _TopEquipo({
+    required this.productId,
+    required this.nombre,
+    required this.imagenUrl,
+    required this.totalReportes,
+  });
+}
+
+DateTime? _resolveReportDate(dynamic rawDate) {
+  if (rawDate is Timestamp) {
+    return rawDate.toDate();
+  }
+  if (rawDate is DateTime) {
+    return rawDate;
+  }
+  if (rawDate is String) {
+    return DateTime.tryParse(rawDate);
+  }
+  return null;
 }

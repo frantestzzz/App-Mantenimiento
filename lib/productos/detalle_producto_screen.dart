@@ -3,14 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart'; 
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:qr_flutter/qr_flutter.dart'; // Para generar el QR
-import 'package:appmantflutter/services/schema_service.dart';
 
 // IMPORTACIONES DE TUS OTRAS PANTALLAS Y SERVICIOS
 import 'package:appmantflutter/reportes/generar_reporte_screen.dart'; 
 import 'package:appmantflutter/productos/editar_producto_screen.dart'; 
 import 'package:appmantflutter/services/pdf_service.dart'; 
 import 'package:appmantflutter/productos/reportes_del_producto_screen.dart';
-import 'package:appmantflutter/reportes/reporte_card.dart';
+import 'package:appmantflutter/reportes/detalle_reporte_screen.dart';
 
 class DetalleProductoScreen extends StatelessWidget {
   final String productId;
@@ -26,14 +25,11 @@ class DetalleProductoScreen extends StatelessWidget {
           toFirestore: (data, _) => data,
         )
         .doc(productId);
-    final schemaService = SchemaService();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(
-        title: const Text("Detalle del Producto", style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text("Detalle del Activo"),
         // BOTONES EN LA BARRA SUPERIOR (PDF y EDITAR)
         actions: [
           StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -120,14 +116,12 @@ class DetalleProductoScreen extends StatelessWidget {
 
           final data = snapshot.data!.data() ?? <String, dynamic>{};
           final String productName = data['nombre'] ?? 'N/A';
-          final String initialStatus = data['estado'] ?? 'operativo';
           final String productCategory = data['categoria'] ?? 'N/A';
-          final bool isOperativo = initialStatus.toLowerCase() == 'operativo';
           final Map<String, dynamic> ubicacion = data['ubicacion'] ?? {};
           final Map<String, dynamic> attrs = data['attrs'] ?? {};
           final String imageUrl = data['imagenUrl'] ?? ''; 
           final String codigoQR = (data['codigoQR'] ?? attrs['codigoQR'] ?? '').toString(); 
-          final String disciplina = data['disciplina'] ?? '';
+          final String estadoOperativo = (data['estadoOperativo'] ?? data['estado'] ?? 'operativo').toString().toLowerCase();
 
           final Timestamp? tsInstalacion = data['fechaInstalacion'];
           final String fechaInstalacion = tsInstalacion != null
@@ -139,43 +133,16 @@ class DetalleProductoScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Imagen y Cabecera
-                _buildProductHeader(data, isOperativo, imageUrl),
+                _buildProductHeader(data, estadoOperativo, imageUrl),
 
                 // Descripción
-                _buildSection(
+                _buildSectionCard(
                   title: "Descripción",
                   content: Text(data['descripcion'] ?? 'Sin descripción.', style: const TextStyle(fontSize: 15, color: Color(0xFF666666))),
                 ),
 
-                // Código QR
-                _buildSection(
-                  title: "Código QR",
-                  content: Center(
-                    child: Column(
-                      children: [
-                        if (codigoQR.isNotEmpty)
-                          QrImageView(
-                            data: codigoQR,
-                            version: QrVersions.auto,
-                            size: 120.0,
-                            padding: const EdgeInsets.all(10),
-                            backgroundColor: Colors.white,
-                          )
-                        else
-                          Icon(FontAwesomeIcons.qrcode, size: 80, color: Colors.grey[300]),
-                        
-                        const SizedBox(height: 10),
-                        Text(
-                          codigoQR.isNotEmpty ? codigoQR : "No hay código QR asignado",
-                          style: TextStyle(color: codigoQR.isNotEmpty ? const Color(0xFF3498DB) : Colors.grey[600], fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
                 // Detalles
-                _buildSection(
+                _buildSectionCard(
                   title: "Detalles del Equipo",
                   content: Column(
                     children: [
@@ -194,7 +161,7 @@ class DetalleProductoScreen extends StatelessWidget {
                 ),
 
                 // Ubicación
-                _buildSection(
+                _buildSectionCard(
                   title: "Ubicación",
                   content: Column(
                     children: [
@@ -208,24 +175,6 @@ class DetalleProductoScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-
-                StreamBuilder<SchemaSnapshot?>(
-                  stream: disciplina.isNotEmpty ? schemaService.streamSchema(disciplina) : Stream.empty(),
-                  builder: (context, schemaSnap) {
-                    final schema = schemaSnap.data;
-                    if (schema == null) {
-                      return const SizedBox.shrink();
-                    }
-                    final dynamicRows = _buildDynamicDetails(schema.fields, data, attrs);
-                    if (dynamicRows.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    return _buildSection(
-                      title: "Parámetros",
-                      content: Column(children: dynamicRows),
-                    );
-                  },
-                ),
                 
                 // Lista de Reportes
                 _buildReportsList(
@@ -233,6 +182,8 @@ class DetalleProductoScreen extends StatelessWidget {
                   productId: productId,
                   productName: productName,
                 ),
+
+                _buildQrSection(codigoQR),
 
                 const SizedBox(height: 100),
               ],
@@ -263,7 +214,6 @@ class DetalleProductoScreen extends StatelessWidget {
                 ),
               );
             },
-            backgroundColor: const Color(0xFF3498DB),
             child: const Icon(Icons.add, size: 32, color: Colors.white),
           );
         },
@@ -273,61 +223,91 @@ class DetalleProductoScreen extends StatelessWidget {
 
   // --- WIDGETS AUXILIARES ---
 
-  Widget _buildProductHeader(Map<String, dynamic> data, bool isOperativo, String imageUrl) {
-    return Column(
-      children: [
-        Container(
-          color: Colors.white,
-          width: double.infinity,
-          height: 250,
-          child: imageUrl.isNotEmpty
-              ? Image.network( 
-                  imageUrl, 
-                  fit: BoxFit.contain,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const Center(child: CircularProgressIndicator());
-                  },
-                  errorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.broken_image, size: 60, color: Colors.grey[400])),
-                )
-              : const Center(child: Text('Sin foto', style: TextStyle(color: Colors.grey))),
-        ),
-        Container(
-          padding: const EdgeInsets.all(20),
-          color: Colors.white,
-          margin: const EdgeInsets.only(bottom: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(data['nombre'] ?? 'Producto Desconocido', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-                decoration: BoxDecoration(
-                  color: isOperativo ? const Color(0xFF2ECC71) : const Color(0xFFE74C3C),
-                  borderRadius: BorderRadius.circular(15),
+  Widget _buildProductHeader(Map<String, dynamic> data, String estadoOperativo, String imageUrl) {
+    final estadoLabel = estadoOperativo.toUpperCase();
+    final estadoColor = _estadoColor(estadoOperativo);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(isOperativo ? FontAwesomeIcons.circleCheck : FontAwesomeIcons.circleXmark, color: Colors.white, size: 14),
-                    const SizedBox(width: 8),
-                    Text(data['estado']?.toUpperCase() ?? 'DESCONOCIDO', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
+            height: 230,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(child: CircularProgressIndicator());
+                      },
+                      errorBuilder: (context, error, stackTrace) => Center(
+                        child: Icon(Icons.broken_image, size: 60, color: Colors.grey[400]),
+                      ),
+                    )
+                  : const Center(
+                      child: Text('Sin foto', style: TextStyle(color: Colors.grey)),
+                    ),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              data['nombre'] ?? 'Activo sin nombre',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Chip(
+            label: Text(estadoLabel, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            backgroundColor: estadoColor,
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildSection({required String title, required Widget content}) {
+  Widget _buildSectionCard({required String title, required Widget content}) {
     return Container(
-      margin: const EdgeInsets.only(top: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(20),
-      color: Colors.white,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       width: double.infinity,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,88 +332,196 @@ class DetalleProductoScreen extends StatelessWidget {
           toFirestore: (data, _) => data,
         )
         .doc(productId);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 15),
-          const Text("Lista de Reportes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF444444))),
-          const SizedBox(height: 10),
+    return _buildSectionCard(
+      title: "Lista de Reportes",
+      content: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: productRef
+            .collection('reportes')
+            .withConverter<Map<String, dynamic>>(
+              fromFirestore: (snapshot, _) => snapshot.data() ?? {},
+              toFirestore: (data, _) => data,
+            )
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(strokeWidth: 2)));
+          }
+          if (snapshot.hasError) return Text('Error al cargar reportes: ${snapshot.error}');
 
-          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: productRef
-                .collection('reportes')
-                .withConverter<Map<String, dynamic>>(
-                  fromFirestore: (snapshot, _) => snapshot.data() ?? {},
-                  toFirestore: (data, _) => data,
-                )
-                .orderBy('fechaInspeccion', descending: true)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(strokeWidth: 2)));
-              }
-              if (snapshot.hasError) return Text('Error al cargar reportes: ${snapshot.error}');
-              
-              final reports = snapshot.data!.docs;
-              
-              if (reports.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Text('Este equipo no tiene reportes registrados.', textAlign: TextAlign.center),
+          final reports = snapshot.data?.docs ?? [];
+
+          if (reports.isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text('Este equipo no tiene reportes registrados.', textAlign: TextAlign.center),
+            );
+          }
+
+          final sortedReports = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(reports)
+            ..sort((a, b) {
+              final dateA = _resolveReportDate(a.data());
+              final dateB = _resolveReportDate(b.data());
+              return dateB.compareTo(dateA);
+            });
+          final visibleReports = sortedReports.take(4).toList();
+          final hasMore = sortedReports.length > 4;
+
+          return Column(
+            children: [
+              ...visibleReports.map((doc) {
+                final data = doc.data();
+                return _ReportPill(
+                  reportId: doc.id,
+                  productId: productId,
+                  tipoReporte: data['tipoReporte'] ?? data['tipo_reporte'] ?? 'General',
+                  estadoOperativo: data['estadoOperativo'] ?? data['estadoNuevo'] ?? data['estado'] ?? '',
+                  fecha: _resolveReportDate(data),
                 );
-              }
-
-              final sortedReports = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(reports)
-                ..sort((a, b) {
-                  final dateA = _resolveReportDate(a.data());
-                  final dateB = _resolveReportDate(b.data());
-                  return dateB.compareTo(dateA);
-                });
-              final visibleReports = sortedReports.take(4).toList();
-              final hasMore = sortedReports.length > 4;
-
-              return ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: visibleReports.length + (hasMore ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (hasMore && index == visibleReports.length) {
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ReportesDelProductoScreen(
-                                productId: productId,
-                                nombreProducto: productName,
-                              ),
-                            ),
-                          );
-                        },
-                        child: const Text('Ver todos'),
-                      ),
-                    );
-                  }
-
-                  final reportDoc = visibleReports[index];
-                  final reportData = reportDoc.data();
-                  return ReportCard(
-                    reporte: reportData,
-                    reportId: reportDoc.id,
-                    productId: productId,
-                  );
-                },
-              );
-            },
-          ),
-        ],
+              }),
+              if (hasMore)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ReportesDelProductoScreen(
+                            productId: productId,
+                            nombreProducto: productName,
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text('Ver todos'),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
+}
+
+class _ReportPill extends StatelessWidget {
+  final String reportId;
+  final String productId;
+  final String tipoReporte;
+  final String estadoOperativo;
+  final DateTime fecha;
+
+  const _ReportPill({
+    required this.reportId,
+    required this.productId,
+    required this.tipoReporte,
+    required this.estadoOperativo,
+    required this.fecha,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dateLabel = DateFormat('dd/MM/yyyy').format(fecha);
+    final estadoLabel = estadoOperativo.isEmpty ? 'N/A' : estadoOperativo.toUpperCase();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DetalleReporteScreen(
+                reportId: reportId,
+                productId: productId,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: _estadoColor(estadoOperativo.toLowerCase()),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _formatLabel(tipoReporte),
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('Fecha: $dateLabel', style: const TextStyle(color: Color(0xFF666666))),
+                  ],
+                ),
+              ),
+              Text(
+                estadoLabel,
+                style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF555555)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Widget _buildQrSection(String codigoQR) {
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.04),
+          blurRadius: 6,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Column(
+      children: [
+        const Text(
+          "Código QR",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF444444)),
+        ),
+        const SizedBox(height: 16),
+        if (codigoQR.isNotEmpty)
+          QrImageView(
+            data: codigoQR,
+            version: QrVersions.auto,
+            size: 120.0,
+            padding: const EdgeInsets.all(10),
+            backgroundColor: Colors.white,
+          )
+        else
+          Icon(FontAwesomeIcons.qrcode, size: 80, color: Colors.grey[300]),
+        const SizedBox(height: 10),
+        Text(
+          codigoQR.isNotEmpty ? codigoQR : "No hay código QR asignado",
+          style: TextStyle(color: codigoQR.isNotEmpty ? const Color(0xFF8B1E1E) : Colors.grey[600], fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
 }
 
 DateTime _resolveReportDate(Map<String, dynamic> data) {
@@ -450,34 +538,29 @@ DateTime _resolveReportDate(Map<String, dynamic> data) {
   return DateTime.fromMillisecondsSinceEpoch(0);
 }
 
-List<Widget> _buildDynamicDetails(
-  List<SchemaField> fields,
-  Map<String, dynamic> data,
-  Map<String, dynamic> attrs,
-) {
-  const excluded = <String>{
-    'idActivo',
-    'nombre',
-    'estado',
-    'piso',
-    'bloque',
-    'area',
-    'disciplina',
-    'categoria',
-    'subcategoria',
-    'descripcion',
-    'fechaCompra',
-    'updatedAt',
-    'imagenUrl',
-  };
+Color _estadoColor(String estado) {
+  switch (estado.toLowerCase()) {
+    case 'operativo':
+      return const Color(0xFF2ECC71);
+    case 'defectuoso':
+      return const Color(0xFFF39C12);
+    case 'fuera_servicio':
+    case 'fuera de servicio':
+      return const Color(0xFFE74C3C);
+    default:
+      return const Color(0xFF95A5A6);
+  }
+}
 
-  return fields
-      .where((field) => !excluded.contains(field.key))
-      .map((field) {
-        final value = attrs[field.key] ?? data[field.key] ?? '--';
-        return _DetailRow(icon: FontAwesomeIcons.list, label: field.displayName, value: value.toString());
-      })
-      .toList();
+String _formatLabel(String value) {
+  final normalized = value.replaceAll('_', ' ');
+  if (normalized.isEmpty) {
+    return value;
+  }
+  return normalized
+      .split(' ')
+      .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
+      .join(' ');
 }
 
 class _DetailRow extends StatelessWidget {

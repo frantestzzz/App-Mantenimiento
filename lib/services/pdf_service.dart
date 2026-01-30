@@ -4,6 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PdfService {
   
@@ -46,7 +47,7 @@ class PdfService {
               pw.SizedBox(height: 20),
               _buildPdfSection("Ubicación", _buildLocationInfo(producto)),
               pw.SizedBox(height: 10),
-              _buildPdfSection("Historial de Mantenimiento (Últimos 5)", _buildReportsTable(ultimosReportes)),
+              _buildPdfSection("Historial de reportes (últimos 5)", _buildReportsTable(ultimosReportes)),
               pw.SizedBox(height: 30),
               _buildFooter(),
             ];
@@ -302,37 +303,90 @@ class PdfService {
           );
       }
 
-      final headers = ['N°', 'Fecha', 'Tipo', 'Encargado', 'Estado'];
+      final sorted = List<Map<String, dynamic>>.from(reportes)
+        ..sort((a, b) => _resolveDate(b['fechaInspeccion'] ?? b['fecha'])
+            .compareTo(_resolveDate(a['fechaInspeccion'] ?? a['fecha'])));
+      final latest = sorted.take(5).toList();
 
-      final data = reportes.map((r) {
-        String fecha = r['fechaDisplay'] ?? '--';
-        
-        return [
-          r['nro']?.toString() ?? '',
-          fecha,
-          r['tipo_reporte']?.toString() ?? 'General',
-          r['encargado']?.toString() ?? '',
-          r['estado_nuevo']?.toString() ?? '',
-        ];
-      }).toList();
+      return pw.Column(
+        children: latest.map((reporte) {
+          final tipoReporte = reporte['tipoReporte'] ?? reporte['tipo_reporte'] ?? 'General';
+          final estadoOperativo = reporte['estadoOperativo'] ?? reporte['estadoNuevo'] ?? reporte['estado_nuevo'] ?? 'N/A';
+          final tipoMantenimiento = reporte['tipoMantenimiento'];
+          final fechaRaw = reporte['fechaInspeccion'] ?? reporte['fecha'];
+          final fecha = _formatDate(fechaRaw);
+          final requiereReemplazo = reporte['requiereReemplazo'];
+          final isReemplazo = tipoReporte == 'reemplazo';
+          final showRequiere = tipoReporte == 'mantenimiento' ||
+              tipoReporte == 'inspeccion' ||
+              tipoReporte == 'incidente_falla';
 
-      return pw.TableHelper.fromTextArray(
-        headers: headers,
-        data: data,
-        border: null,
-        headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-        headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
-        rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300))),
-        cellPadding: const pw.EdgeInsets.all(5),
-        headerAlignments: {
-          0: pw.Alignment.centerLeft,
-          1: pw.Alignment.center,
-          2: pw.Alignment.centerLeft,
-          3: pw.Alignment.centerLeft,
-          4: pw.Alignment.center,
-        },
+          return pw.Container(
+            margin: const pw.EdgeInsets.only(bottom: 8),
+            padding: const pw.EdgeInsets.all(8),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: pw.BorderRadius.circular(6),
+              border: pw.Border.all(color: PdfColors.grey300),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                _infoRow("Tipo de reporte:", tipoReporte.toString()),
+                _infoRow("Estado operativo:", estadoOperativo.toString()),
+                if (tipoReporte == 'mantenimiento' && tipoMantenimiento != null)
+                  _infoRow("Tipo de mantenimiento:", tipoMantenimiento.toString()),
+                _infoRow("Fecha:", fecha),
+                pw.Row(
+                  children: [
+                    pw.Text("Reemplazo:", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.SizedBox(width: 6),
+                    pw.Text(
+                      isReemplazo ? "✅" : "❌",
+                      style: pw.TextStyle(
+                        color: isReemplazo ? PdfColors.green800 : PdfColors.red800,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                if (showRequiere)
+                  _infoRow(
+                    "Requiere reemplazo:",
+                    (requiereReemplazo == true) ? 'Sí' : 'No',
+                  ),
+              ],
+            ),
+          );
+        }).toList(),
       );
     }
+
+  static DateTime _resolveDate(dynamic value) {
+    if (value == null) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    if (value is DateTime) {
+      return value;
+    }
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    try {
+      final Timestamp valueTs = value as Timestamp;
+      return valueTs.toDate();
+    } catch (_) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+  }
+
+  static String _formatDate(dynamic value) {
+    final date = _resolveDate(value);
+    if (date.year <= 1970) {
+      return '--/--/----';
+    }
+    return DateFormat('dd/MM/yyyy').format(date);
+  }
 
   // Helper básico para filas de texto
   static pw.Widget _infoRow(String label, String? value) {

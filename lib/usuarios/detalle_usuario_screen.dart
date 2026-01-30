@@ -23,9 +23,7 @@ class DetalleUsuarioScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text("Perfil de Usuario", style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text("Perfil de Usuario"),
         actions: [
           // --- BOTÓN ELIMINAR (Solo Admin debería ver esto, lógica futura) ---
           IconButton(icon: const Icon(FontAwesomeIcons.trash, size: 18, color: Color(0xFFE74C3C)), onPressed: () {

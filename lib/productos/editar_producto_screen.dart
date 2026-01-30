@@ -35,9 +35,7 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
   final _nivelController = TextEditingController();
   final _bloqueController = TextEditingController();
   final _espacioController = TextEditingController();
-  final _tipoActivoController = TextEditingController();
   final _idActivoController = TextEditingController();
-  String _idActivoPreview = '';
   String _idActivoCorrelativo = '000';
   final _frecuenciaMantenimientoController = TextEditingController();
   final _costoMantenimientoController = TextEditingController();
@@ -82,7 +80,6 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
       _dynamicControllers[entry.key] = TextEditingController(text: entry.value?.toString() ?? '');
     }
 
-    _tipoActivoController.text = widget.initialData['tipoActivo']?.toString() ?? '';
     _idActivoController.text = widget.initialData['idActivo']?.toString() ?? '';
     _idActivoCorrelativo =
         ActivoIdHelper.extractCorrelativo(_idActivoController.text) ?? _idActivoCorrelativo;
@@ -102,7 +99,6 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
     _nivelController.dispose();
     _bloqueController.dispose();
     _espacioController.dispose();
-    _tipoActivoController.dispose();
     _idActivoController.dispose();
     _frecuenciaMantenimientoController.dispose();
     _costoMantenimientoController.dispose();
@@ -208,7 +204,6 @@ Future<String?> _uploadToSupabase() async {
       'categoria': widget.initialData['categoria'] ?? widget.initialData['categoriaActivo'],
       'categoriaActivo': widget.initialData['categoria'] ?? widget.initialData['categoriaActivo'],
       'subcategoria': widget.initialData['subcategoria'],
-      'tipoActivo': _tipoActivoController.text.trim(),
       // Si ya existía un correlativo, solo recalculamos el prefijo para mantener el ID estable.
       'idActivo': idActivo,
       'bloque': _bloqueController.text.trim(),
@@ -260,8 +255,6 @@ Future<String?> _uploadToSupabase() async {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar Producto'),
-        backgroundColor: const Color(0xFF2C3E50),
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Form(
         key: _formKey,
@@ -299,100 +292,88 @@ Future<String?> _uploadToSupabase() async {
               ),
             ),
             const SizedBox(height: 10),
-            Center(child: Text(isNewLocalFile ? 'Nueva imagen seleccionada' : 'Toca para cambiar la imagen', style: const TextStyle(color: Color(0xFF3498DB)))),
+            Center(child: Text(isNewLocalFile ? 'Nueva imagen seleccionada' : 'Toca para cambiar la imagen', style: TextStyle(color: Theme.of(context).colorScheme.primary))),
             
             const SizedBox(height: 30),
 
-            // Campos de Edición
-            TextFormField(
+            const Text("Datos Generales", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 10),
+            _buildTextField(
               controller: _nombreController,
-              decoration: const InputDecoration(labelText: 'Nombre del Producto'),
+              label: 'Nombre del Equipo',
               onChanged: (_) => _updateIdActivoPreview(),
               validator: (v) => v!.isEmpty ? 'Ingrese un nombre' : null,
             ),
-            
-            TextFormField(
+            _buildTextField(
               controller: _descripcionController,
-              decoration: const InputDecoration(labelText: 'Descripción'),
+              label: 'Descripción',
               maxLines: 3,
             ),
 
-            TextFormField(
-              controller: _bloqueController,
-              decoration: const InputDecoration(labelText: 'Bloque'),
-              onChanged: (_) => _updateIdActivoPreview(),
+            const SizedBox(height: 20),
+            const Text("Ubicación", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    controller: _bloqueController,
+                    label: 'Bloque',
+                    onChanged: (_) => _updateIdActivoPreview(),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildTextField(
+                    controller: _nivelController,
+                    label: 'Nivel',
+                    onChanged: (_) => _updateIdActivoPreview(),
+                  ),
+                ),
+              ],
             ),
-
-            TextFormField(
-              controller: _nivelController,
-              decoration: const InputDecoration(labelText: 'Nivel'),
-              onChanged: (_) => _updateIdActivoPreview(),
-            ),
-
-            TextFormField(
+            _buildTextField(
               controller: _espacioController,
-              decoration: const InputDecoration(labelText: 'Espacio'),
+              label: 'Espacio',
             ),
 
             const SizedBox(height: 16),
             const Text("Datos del Activo", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 10),
             TextFormField(
-              controller: _tipoActivoController,
-              decoration: const InputDecoration(labelText: 'Tipo de Activo'),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
               controller: _idActivoController,
               decoration: const InputDecoration(
-                labelText: 'ID Activo',
-                helperText: 'Se autogenera. El correlativo no cambia al editar.',
+                labelText: 'ID Activo (autogenerado)',
+                border: OutlineInputBorder(),
               ),
               readOnly: true,
               enabled: false,
             ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  const Icon(Icons.visibility, size: 18, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'ID Activo (previsualización): $_idActivoPreview',
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 12),
-            TextFormField(
+            _buildTextField(
               controller: _frecuenciaMantenimientoController,
-              decoration: const InputDecoration(labelText: 'Frecuencia Mantenimiento (meses)'),
+              label: 'Frecuencia Mantenimiento (meses)',
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
-            TextFormField(
+            _buildTextField(
               controller: _costoMantenimientoController,
-              decoration: const InputDecoration(
-                labelText: 'Costo Mantenimiento',
-                helperText: 'Se calcula automáticamente desde reportes.',
-                suffixIcon: Icon(Icons.lock_outline, size: 16),
-              ),
+              label: 'Costo Mantenimiento',
+              helperText: 'Se calcula automáticamente desde reportes.',
+              suffixIcon: const Icon(Icons.lock_outline, size: 16),
               keyboardType: TextInputType.number,
               readOnly: true,
             ),
             const SizedBox(height: 12),
-            TextFormField(
+            _buildTextField(
               controller: _costoReemplazoController,
-              decoration: const InputDecoration(labelText: 'Costo Reemplazo'),
+              label: 'Costo Reemplazo',
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
-            TextFormField(
+            _buildTextField(
               controller: _vidaUtilEsperadaController,
-              decoration: const InputDecoration(labelText: 'Vida Útil Esperada (Años)'),
+              label: 'Vida Útil Esperada (Años)',
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
@@ -411,7 +392,6 @@ Future<String?> _uploadToSupabase() async {
             ElevatedButton(
               onPressed: _saveChanges,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0D6EFD),
                 padding: const EdgeInsets.symmetric(vertical: 15),
               ),
               child: const Text('GUARDAR CAMBIOS', style: TextStyle(color: Colors.white, fontSize: 16)),
@@ -431,9 +411,38 @@ Future<String?> _uploadToSupabase() async {
       correlativo: _idActivoCorrelativo,
     );
     setState(() {
-      _idActivoPreview = preview;
       _idActivoController.text = preview;
     });
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    String? helperText,
+    Widget? suffixIcon,
+    bool readOnly = false,
+    String? Function(String?)? validator,
+    ValueChanged<String>? onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: controller,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        readOnly: readOnly,
+        onChanged: onChanged,
+        validator: validator,
+        decoration: InputDecoration(
+          labelText: label,
+          helperText: helperText,
+          suffixIcon: suffixIcon,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+    );
   }
 
   Map<String, dynamic> _collectDynamicAttrs(List<SchemaField> fields) {

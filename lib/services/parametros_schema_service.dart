@@ -322,6 +322,7 @@ class ParametrosSchemaService {
       'arquitectura',
       'sanitarias',
       'estructuras',
+      'mecanica',
     ];
 
     return disciplinas

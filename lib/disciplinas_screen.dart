@@ -28,13 +28,8 @@ class DisciplinasScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(
-        title: const Text(
-          'Disciplinas',
-          style: TextStyle(color: Colors.black),
-        ),
-        backgroundColor: Colors.white,
+        title: const Text('Disciplinas'),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
         centerTitle: false,
       ),
       body: Column(

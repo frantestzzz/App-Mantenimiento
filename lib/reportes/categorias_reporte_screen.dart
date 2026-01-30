@@ -21,11 +21,8 @@ class CategoriasReporteScreen extends StatelessWidget {
         // Título dinámico "Reportes de [Disciplina]"
         title: Text(
           "Reportes de $disciplinaNombre",
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: const Color(0xFF2C3E50),
         centerTitle: false,
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Column(
         children: [

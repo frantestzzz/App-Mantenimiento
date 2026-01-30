@@ -48,11 +48,40 @@ class MiAppMantenimiento extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const primaryRed = Color(0xFF8B1E1E);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Mantenimiento App',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: primaryRed,
+          primary: primaryRed,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: primaryRed,
+          foregroundColor: Colors.white,
+          titleTextStyle: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+          iconTheme: IconThemeData(color: Colors.white),
+        ),
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: primaryRed,
+          foregroundColor: Colors.white,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primaryRed,
+            foregroundColor: Colors.white,
+          ),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: primaryRed.withOpacity(0.1),
+          selectedColor: primaryRed,
+          secondarySelectedColor: primaryRed,
+          labelStyle: const TextStyle(color: Color(0xFF2C2C2C)),
+          secondaryLabelStyle: const TextStyle(color: Colors.white),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
         scaffoldBackgroundColor: const Color(0xFFF0F2F5),
       ),
       // --- AUTH GATE: DECIDE QUÉ PANTALLA MOSTRAR ---
@@ -82,8 +111,7 @@ class MainMenuScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Menú Principal", style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2C3E50),
+        title: const Text("Menú Principal"),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
@@ -103,7 +131,6 @@ class MainMenuScreen extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const QRScannerScreen()),
           );
         },
-        backgroundColor: const Color(0xFF2C3E50), // Azul oscuro
         icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
         label: const Text("Escanear", style: TextStyle(color: Colors.white)),
       ),
@@ -116,78 +143,79 @@ class MainMenuScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                
-                // BOTÓN 1: DASHBOARD
-                _MenuCard(
-                    title: "Dashboard",
-                    icon: Icons.analytics_outlined, // Icono de gráficas
-                    color: const Color(0xFF9B59B6), // Un color morado para distinguir
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const DashboardScreen()),
-                      );
-                    },
+                GridView.count(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _MenuCard(
+                      title: "Dashboard",
+                      icon: Icons.analytics_outlined,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+                        );
+                      },
+                    ),
+                    _MenuCard(
+                      title: "Disciplinas",
+                      icon: Icons.inventory_2_outlined,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const DisciplinasScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    _MenuCard(
+                      title: "Reportes",
+                      icon: Icons.description_outlined,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ReportesScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    _MenuCard(
+                      title: "Parámetros",
+                      icon: Icons.tune,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ParametrosScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.center,
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.6,
+                    child: _MenuCard(
+                      title: "Usuarios",
+                      icon: Icons.group_outlined,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ListaUsuariosScreen()),
+                        );
+                      },
+                    ),
                   ),
-
-                // BOTÓN 2: DISCIPLINAS
-                _MenuCard(
-                  title: "Disciplinas",
-                  icon: Icons.inventory_2_outlined,
-                  color: const Color(0xFF3498db),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DisciplinasScreen(),
-                      ),
-                    );
-                  },
                 ),
-
-                // BOTÓN 3: REPORTES
-                _MenuCard(
-                  title: "Reportes",
-                  icon: Icons.description_outlined,
-                  color: const Color(0xFF2ecc71),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ReportesScreen(),
-                      ),
-                    );
-                  },
-                ),
-
-                // BOTÓN 4: PARÁMETROS
-                _MenuCard(
-                  title: "Parámetros",
-                  icon: Icons.tune,
-                  color: const Color(0xFF1ABC9C),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ParametrosScreen(),
-                      ),
-                    );
-                  },
-                ),
-
-                // BOTÓN 5: USUARIOS
-                _MenuCard(
-                  title: "Usuarios",
-                  icon: Icons.group_outlined,
-                  color: const Color(0xFFe67e22),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ListaUsuariosScreen()),
-                    );
-                  },
-                ),
-
+                const SizedBox(height: 80),
               ],
             ),
           ),
@@ -201,21 +229,19 @@ class MainMenuScreen extends StatelessWidget {
 class _MenuCard extends StatelessWidget {
   final String title;
   final IconData icon;
-  final Color color;
   final VoidCallback onTap;
 
   const _MenuCard({
     required this.title,
     required this.icon,
-    required this.color,
     required this.onTap,
     super.key
   });
 
   @override
   Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.primary;
     return Card(
-      margin: const EdgeInsets.only(bottom: 20),
       elevation: 5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: Colors.white,
@@ -224,16 +250,16 @@ class _MenuCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 25),
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 48, color: color),
+              Icon(icon, size: 42, color: color),
               const SizedBox(height: 15),
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF34495E),
                 ),
