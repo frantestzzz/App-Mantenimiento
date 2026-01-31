@@ -209,12 +209,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               barTouchData: BarTouchData(
                                 enabled: true,
                                 touchTooltipData: BarTouchTooltipData(
-                                  tooltipBgColor: const Color(0xFF8B1E1E),
                                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                                     final value = rod.toY.round();
                                     return BarTooltipItem(
                                       '$value',
-                                      const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                      const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        backgroundColor: Color(0xFF8B1E1E),
+                                      ),
                                     );
                                   },
                                 ),

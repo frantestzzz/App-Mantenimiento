@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/widgets.dart' show PdfGoogleFonts;
 import 'package:printing/printing.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -28,8 +29,8 @@ class PdfService {
       }
     }
 
-    final fontRegular = await pw.PdfGoogleFonts.notoSansRegular();
-    final fontBold = await pw.PdfGoogleFonts.notoSansBold();
+    final fontRegular = await PdfGoogleFonts.notoSansRegular();
+    final fontBold = await PdfGoogleFonts.notoSansBold();
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(
         base: fontRegular,
@@ -70,8 +71,8 @@ class PdfService {
     required Map<String, dynamic> reporte,
     required String reportId,
   }) async {
-    final fontRegular = await pw.PdfGoogleFonts.notoSansRegular();
-    final fontBold = await pw.PdfGoogleFonts.notoSansBold();
+    final fontRegular = await PdfGoogleFonts.notoSansRegular();
+    final fontBold = await PdfGoogleFonts.notoSansBold();
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(
         base: fontRegular,
